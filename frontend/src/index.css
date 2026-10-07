@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #2563EB;
+  --primary-dark: #1D4ED8;
+  --primary-light: #DBEAFE;
+  --primary-bg: #EFF6FF;
+  --navy: #1E3A8A;
+  --background: #F8FAFC;
+  --surface: #FFFFFF;
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --border: #E2E8F0;
+}
+
+body {
+  background-color: #F8FAFC;
+  color: #0F172A;
+  font-family: 'Plus Jakarta Sans', 'Noto Sans Devanagari', 'Noto Sans Tamil', -apple-system, BlinkMacSystemFont, sans-serif;
+  user-select: none; /* Kiosk Touch Screen Optimized */
+}
+
+/* Custom kiosk scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+::-webkit-scrollbar-thumb {
+  background: #93C5FD;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2563EB;
+}
+
+.kiosk-btn {
+  @apply transition-all duration-200 active:scale-95 shadow-sm hover:shadow focus:outline-none focus:ring-4 focus:ring-blue-200;
+}
