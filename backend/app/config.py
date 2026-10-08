@@ -1,6 +1,10 @@
 import os
-from typing import List
+from typing import List, Optional
 from pydantic_settings import BaseSettings
+
+# Base backend directory for resolving local assets and database
+BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DEFAULT_DB_PATH = os.path.join(BACKEND_DIR, "medikiosk.db").replace("\\", "/")
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "MediKiosk - AI Clinical History Platform"
@@ -9,7 +13,7 @@ class Settings(BaseSettings):
     ENFORCE_HTTPS: bool = os.getenv("ENFORCE_HTTPS", "false").lower() in ("true", "1", "yes")
     
     # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./medikiosk.db")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{DEFAULT_DB_PATH}")
     
     # JWT Authentication
     SECRET_KEY: str = os.getenv("SECRET_KEY", "")
@@ -22,9 +26,12 @@ class Settings(BaseSettings):
         "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000"
     )
     
-    # OTP Configuration & File Delivery (Development)
-    OTP_MODE: str = os.getenv("OTP_MODE", "file") # "file" | "sms" | "production"
-    OTP_FILE_PATH: str = os.getenv("OTP_FILE_PATH", "runtime/otp/latest_otp.txt")
+    # Demo OTP Display (Development / Hackathon Mode Only)
+    SHOW_DEMO_OTP: Optional[bool] = None
+    
+    # OTP Configuration & Gateway
+    OTP_MODE: str = os.getenv("OTP_MODE", "sms") # "sms" | "production"
+    OTP_FILE_PATH: str = os.getenv("OTP_FILE_PATH", "")
     OTP_EXPIRE_MINUTES: int = int(os.getenv("OTP_EXPIRY_MINUTES", os.getenv("OTP_EXPIRE_MINUTES", "5")))
     OTP_COOLDOWN_SECONDS: int = int(os.getenv("OTP_RESEND_COOLDOWN_SECONDS", os.getenv("OTP_COOLDOWN_SECONDS", "30")))
     OTP_MAX_ATTEMPTS: int = int(os.getenv("OTP_MAX_ATTEMPTS", "5"))
@@ -46,6 +53,15 @@ class Settings(BaseSettings):
     
     # ABDM Mock Setting
     ABDM_CONNECTED: bool = False # Configurable, real ABDM is mock until certified
+
+    def __init__(self, **values):
+        super().__init__(**values)
+        if self.SHOW_DEMO_OTP is None:
+            raw = os.getenv("SHOW_DEMO_OTP")
+            if raw is not None:
+                self.SHOW_DEMO_OTP = raw.lower() in ("true", "1", "yes")
+            else:
+                self.SHOW_DEMO_OTP = (self.APP_ENV != "production")
     
     class Config:
         env_file = ".env"
@@ -55,6 +71,10 @@ class Settings(BaseSettings):
         raw = self.CORS_ORIGINS or ""
         origins = [o.strip() for o in raw.split(",") if o.strip()]
         return origins
+
+    def should_expose_demo_otp(self) -> bool:
+        """Only expose demo OTP when APP_ENV is development AND SHOW_DEMO_OTP is True."""
+        return self.APP_ENV == "development" and bool(self.SHOW_DEMO_OTP)
 
     def validate_security(self):
         """Enforces security boundaries and fails fast on insecure configurations."""
@@ -89,6 +109,12 @@ class Settings(BaseSettings):
             if "*" in origins:
                 raise RuntimeError(
                     "Insecure configuration: Wildcard CORS origin '*' is strictly prohibited in production."
+                )
+
+            # 5. Demo OTP validation: FAIL FAST if enabled in production
+            if self.SHOW_DEMO_OTP:
+                raise RuntimeError(
+                    "Insecure configuration: SHOW_DEMO_OTP is strictly prohibited in production."
                 )
         else:
             # Development fallback secret if not explicitly provided

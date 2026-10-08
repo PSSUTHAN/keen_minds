@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
 import datetime
+from app.config import settings
 from app.database import get_db
 from app.models import Doctor, Patient, User
 from app.schemas import (
@@ -27,7 +28,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication & Access Control"])
 
 # ----------------- PATIENT AUTHENTICATION -----------------
 
-@router.post("/patient/send-otp", response_model=SendOTPResponse)
+@router.post("/patient/send-otp", response_model=SendOTPResponse, response_model_exclude_none=True)
 def patient_send_otp(payload: SendOTPRequest, db: Session = Depends(get_db)):
     """
     Sends a 6-digit OTP to the patient's mobile number.
@@ -48,12 +49,14 @@ def patient_send_otp(payload: SendOTPRequest, db: Session = Depends(get_db)):
             )
 
     otp_code, cooldown = send_otp_for_phone(phone, payload.purpose.upper(), "PATIENT", db)
+    demo_otp = otp_code if settings.should_expose_demo_otp() else None
 
     return SendOTPResponse(
         success=True,
         message=f"OTP sent successfully to +91 {phone}",
         phone=phone,
-        cooldown_seconds=cooldown
+        cooldown_seconds=cooldown,
+        demo_otp=demo_otp
     )
 
 @router.post("/patient/verify-register", response_model=AuthTokenResponse)
@@ -255,7 +258,7 @@ def patient_verify_and_login(payload: VerifyOTPLoginRequest, db: Session = Depen
 
 # ----------------- DOCTOR AUTHENTICATION -----------------
 
-@router.post("/doctor/send-otp", response_model=SendOTPResponse)
+@router.post("/doctor/send-otp", response_model=SendOTPResponse, response_model_exclude_none=True)
 def doctor_send_otp(payload: SendOTPRequest, db: Session = Depends(get_db)):
     """
     Sends OTP to doctor mobile number.
@@ -290,12 +293,14 @@ def doctor_send_otp(payload: SendOTPRequest, db: Session = Depends(get_db)):
             )
 
     otp_code, cooldown = send_otp_for_phone(phone, purpose, "DOCTOR", db)
+    demo_otp = otp_code if settings.should_expose_demo_otp() else None
 
     return SendOTPResponse(
         success=True,
         message=f"Doctor OTP sent successfully to +91 {phone}",
         phone=phone,
-        cooldown_seconds=cooldown
+        cooldown_seconds=cooldown,
+        demo_otp=demo_otp
     )
 
 @router.post("/doctor/verify-register", response_model=AuthTokenResponse)

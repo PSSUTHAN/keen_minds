@@ -13,6 +13,7 @@ class SendOTPResponse(BaseModel):
     message: str
     phone: Optional[str] = None
     cooldown_seconds: int = 60
+    demo_otp: Optional[str] = None
 
 class PatientRegisterVerifyRequest(BaseModel):
     full_name: Optional[str] = None
@@ -150,6 +151,7 @@ class DoctorPatientSendOTPResponse(BaseModel):
     phone: str
     masked_phone: str
     cooldown_seconds: int = 60
+    demo_otp: Optional[str] = None
 
 class DoctorPatientVerifyOTPRequest(BaseModel):
     phone: str
@@ -188,6 +190,7 @@ class RequestAccessResponse(BaseModel):
     patient_name: str
     masked_phone: str
     cooldown_seconds: int = 60
+    demo_otp: Optional[str] = None
 
 class VerifyAccessRequest(BaseModel):
     otp: str

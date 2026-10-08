@@ -5,8 +5,7 @@ Architecture:
 OTPService
    │
    ├── BaseOTPProvider (Abstract Base)
-   ├── FileOTPProvider (Development: writes to runtime/otp/latest_otp.txt)
-   └── SMSOTPProvider  (Production: SMS gateway dispatch)
+   └── SMSOTPProvider  (SMS/Kannel Gateway dispatch; simulated in dev without plaintext logging)
 """
 
 import os
@@ -92,79 +91,11 @@ class BaseOTPProvider(abc.ABC):
         pass
 
 
-class FileOTPProvider(BaseOTPProvider):
-    """
-    Development-only provider: writes latest OTP to a local protected text file.
-    Strictly forbidden in production environments.
-    """
-
-    def __init__(self, file_path: Optional[str] = None):
-        self.file_path = file_path or settings.OTP_FILE_PATH
-
-    def get_resolved_path(self) -> str:
-        # Resolve path relative to backend root directory if relative
-        if os.path.isabs(self.file_path):
-            resolved = self.file_path
-        else:
-            base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-            resolved = os.path.abspath(os.path.join(base_dir, self.file_path))
-        
-        # Security sanity check: never permit writing inside public/static web assets
-        normalized = resolved.replace("\\", "/").lower()
-        for forbidden in ("frontend/public", "frontend/src", "static/", "dist/", "public/"):
-            if forbidden in normalized:
-                raise RuntimeError(f"Security Violation: OTP file cannot be stored in web directory {resolved}")
-        
-        return resolved
-
-    def send_otp(
-        self,
-        phone: str,
-        otp_code: str,
-        purpose: str,
-        role: str,
-        expires_at: datetime.datetime
-    ) -> bool:
-        # Fail fast if inadvertently invoked in production
-        if settings.APP_ENV == "production":
-            raise RuntimeError("CRITICAL SECURITY ERROR: FileOTPProvider cannot be used in production.")
-
-        resolved_path = self.get_resolved_path()
-        os.makedirs(os.path.dirname(resolved_path), exist_ok=True)
-
-        masked_phone = mask_phone_for_otp(phone)
-        display_purpose = normalize_otp_purpose(purpose, role)
-        generated_at = datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z"
-        exp_iso = expires_at.isoformat(timespec="seconds") + "Z"
-
-        content = (
-            "MediKiosk Development OTP\n"
-            "=========================\n"
-            f"Purpose: {display_purpose}\n"
-            f"Role: {role.upper()}\n"
-            f"Mobile: {masked_phone}\n"
-            f"OTP: {otp_code}\n"
-            f"Expires At: {exp_iso}\n"
-            f"Generated At: {generated_at}\n"
-            "Status: ACTIVE\n"
-            "=========================\n"
-        )
-
-        # Overwrite file completely (no continuous append / no permanent history)
-        with open(resolved_path, "w", encoding="utf-8") as f:
-            f.write(content)
-
-        logger.info(
-            "Development OTP generated for %s (purpose: %s, role: %s, written to %s)",
-            masked_phone, display_purpose, role, self.file_path
-        )
-        return True
-
-
 class SMSOTPProvider(BaseOTPProvider):
     """
-    Production-ready SMS Provider interface for real gateway integration
-    (e.g. Twilio, MSG91, AWS SNS, Karbon/Airtel DLT).
+    SMS Provider interface for gateway integration (e.g. Kannel, Twilio, MSG91, AWS SNS).
+    Simulates gateway dispatch when SMS_API_KEY is not configured.
+    Plaintext OTP is never logged in application logs.
     """
 
     def send_otp(
@@ -176,35 +107,21 @@ class SMSOTPProvider(BaseOTPProvider):
         expires_at: datetime.datetime
     ) -> bool:
         masked_phone = mask_phone_for_otp(phone)
-        # Production gateway dispatch logic here
+        display_purpose = normalize_otp_purpose(purpose, role)
         if not settings.SMS_API_KEY:
-            logger.warning(
-                "SMS Gateway API key not configured. Simulated dispatch for %s (purpose: %s)",
-                masked_phone, purpose
+            logger.info(
+                "SMS/Kannel dispatch simulated for %s (purpose: %s, role: %s)",
+                masked_phone, display_purpose, role
             )
         else:
-            logger.info("Dispatched OTP to %s via configured SMS gateway.", masked_phone)
+            logger.info("Dispatched OTP to %s via configured SMS/Kannel gateway.", masked_phone)
         return True
 
 
 def get_otp_provider() -> BaseOTPProvider:
     """
-    Factory creating delivery provider based on environment and OTP_MODE.
-    Guarantees file-based OTP is rejected in production.
+    Factory creating delivery provider based on environment.
+    File-based OTP delivery is disabled in favor of UI Demo OTP in development and SMS in production.
     """
-    mode = (settings.OTP_MODE or "file").strip().lower()
-
-    if settings.APP_ENV == "production":
-        if mode in ("file", "development"):
-            raise RuntimeError(
-                "Insecure configuration: OTP_MODE='file' is strictly prohibited in production."
-            )
-        return SMSOTPProvider()
-
-    if mode in ("file", "development"):
-        return FileOTPProvider()
-    elif mode == "sms":
-        return SMSOTPProvider()
-    else:
-        return FileOTPProvider()
+    return SMSOTPProvider()
 

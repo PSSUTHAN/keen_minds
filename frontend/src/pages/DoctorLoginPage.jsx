@@ -20,6 +20,7 @@ const DoctorLoginPage = () => {
 
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
+  const [demoOtp, setDemoOtp] = useState(null);
   const [otpSent, setOtpSent] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -58,6 +59,7 @@ const DoctorLoginPage = () => {
       const res = await doctorSendOTP(phoneNumber, 'LOGIN');
       setPhone(phoneNumber);
       setOtpSent(true);
+      setDemoOtp(res.demo_otp || null);
       setCooldown(res.cooldown_seconds || 60);
       setSuccessMsg(res.message || "OTP sent successfully to registered physician number.");
       speakText("OTP sent to your registered mobile number.");
@@ -254,7 +256,7 @@ const DoctorLoginPage = () => {
               </div>
               <button
                 type="button"
-                onClick={() => { setOtpSent(false); setOtp(''); }}
+                onClick={() => { setOtpSent(false); setOtp(''); setDemoOtp(null); }}
                 className="text-xs font-bold text-blue-700 hover:underline cursor-pointer"
               >
                 Change Phone
@@ -271,6 +273,17 @@ const DoctorLoginPage = () => {
               className="w-full text-center tracking-[1em] font-mono text-2xl py-3 border border-slate-300 bg-white rounded-2xl focus:ring-2 focus:ring-blue-100 focus:border-blue-600 focus:bg-blue-50/30 focus:outline-none shadow-sm transition-all"
               autoFocus
             />
+
+            {demoOtp && import.meta.env.VITE_APP_ENV !== 'production' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3.5 text-center my-3">
+                <p className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">
+                  Development Demo OTP
+                </p>
+                <p className="text-2xl font-mono font-black text-blue-900 tracking-[0.25em] mt-0.5">
+                  {demoOtp}
+                </p>
+              </div>
+            )}
 
             <button
               type="button"

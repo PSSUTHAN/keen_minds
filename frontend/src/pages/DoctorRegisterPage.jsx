@@ -51,6 +51,7 @@ const DoctorRegisterPage = () => {
   });
 
   const [otp, setOtp] = useState('');
+  const [demoOtp, setDemoOtp] = useState(null);
   const [otpSent, setOtpSent] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -100,6 +101,7 @@ const DoctorRegisterPage = () => {
     try {
       const res = await doctorSendOTP(cleanPhone, 'REGISTER');
       setOtpSent(true);
+      setDemoOtp(res.demo_otp || null);
       setCooldown(res.cooldown_seconds || 60);
       setSuccessMsg(res.message || "Verification OTP sent to mobile number.");
       speakText("Verification code sent to your mobile number.");
@@ -460,6 +462,17 @@ const DoctorRegisterPage = () => {
                     className="w-full text-center tracking-[1em] font-mono text-2xl py-3 border-2 border-blue-400 bg-white rounded-2xl focus:ring-2 focus:ring-blue-600 focus:outline-none"
                     autoFocus
                   />
+
+                  {demoOtp && import.meta.env.VITE_APP_ENV !== 'production' && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3.5 text-center my-2">
+                      <p className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">
+                        Development Demo OTP
+                      </p>
+                      <p className="text-2xl font-mono font-black text-blue-900 tracking-[0.25em] mt-0.5">
+                        {demoOtp}
+                      </p>
+                    </div>
+                  )}
 
                   {cooldown > 0 ? (
                     <p className="text-xs font-bold text-slate-500 text-center">

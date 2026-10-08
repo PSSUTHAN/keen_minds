@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
+from app.config import settings
 from app.database import get_db
 from app.models import KioskSession, EmergencyAlert, Patient, Doctor, Prescription, User, DoctorViewedPatient, DoctorPatient, DoctorPatientAccess, PatientMedicalReport
 from app.schemas import (
@@ -272,7 +273,7 @@ def doctor_check_patient_by_mobile(
         patient=p_info
     )
 
-@router.post("/patients/send-otp")
+@router.post("/patients/send-otp", response_model=DoctorPatientSendOTPResponse, response_model_exclude_none=True)
 def doctor_send_patient_otp(
     payload: Dict[str, Any],
     current_user: User = Depends(require_role(["DOCTOR"])),
@@ -298,14 +299,16 @@ def doctor_send_patient_otp(
                 detail=f"Patient already exists with this mobile number (ID: PT-{patient.id:03d}, Name: {patient.name})."
             )
         otp_code, cooldown = send_otp_for_phone(phone, "REGISTER", "PATIENT", db)
-        return {
-            "status": "SUCCESS",
-            "success": True,
-            "message": f"OTP sent successfully to patient mobile +91 {phone}",
-            "phone": phone,
-            "masked_phone": mask_phone(phone),
-            "cooldown_seconds": cooldown
-        }
+        demo_otp = otp_code if settings.should_expose_demo_otp() else None
+        return DoctorPatientSendOTPResponse(
+            status="SUCCESS",
+            success=True,
+            message=f"OTP sent successfully to patient mobile +91 {phone}",
+            phone=phone,
+            masked_phone=mask_phone(phone),
+            cooldown_seconds=cooldown,
+            demo_otp=demo_otp
+        )
 
     # Association Flow (DOCTOR_ADD)
     if not patient:
@@ -316,15 +319,17 @@ def doctor_send_patient_otp(
 
     otp_code, cooldown = send_otp_for_phone(patient.phone, "DOCTOR_ADD", "PATIENT", db)
     masked = mask_phone(patient.phone)
+    demo_otp = otp_code if settings.should_expose_demo_otp() else None
 
-    return {
-        "status": "SUCCESS",
-        "success": True,
-        "message": f"OTP sent successfully to patient mobile {masked}",
-        "phone": patient.phone,
-        "masked_phone": masked,
-        "cooldown_seconds": cooldown
-    }
+    return DoctorPatientSendOTPResponse(
+        status="SUCCESS",
+        success=True,
+        message=f"OTP sent successfully to patient mobile {masked}",
+        phone=patient.phone,
+        masked_phone=masked,
+        cooldown_seconds=cooldown,
+        demo_otp=demo_otp
+    )
 
 @router.post("/patients/verify-otp", response_model=DoctorPatientVerifyOTPResponse)
 def doctor_verify_patient_association_otp(
@@ -545,7 +550,7 @@ def get_available_patients(
     )
 
 
-@router.post("/patients/{patient_id}/request-access", response_model=RequestAccessResponse)
+@router.post("/patients/{patient_id}/request-access", response_model=RequestAccessResponse, response_model_exclude_none=True)
 def request_patient_access(
     patient_id: int,
     current_user: User = Depends(require_role(["DOCTOR"])),
@@ -615,6 +620,7 @@ def request_patient_access(
 
     db.commit()
 
+    demo_otp = otp_code if settings.should_expose_demo_otp() else None
     return RequestAccessResponse(
         status="ACCESS_PENDING",
         success=True,
@@ -623,7 +629,8 @@ def request_patient_access(
         formatted_patient_id=f"PT-{patient.id:03d}",
         patient_name=patient.name,
         masked_phone=mask_phone(patient.phone),
-        cooldown_seconds=60
+        cooldown_seconds=60,
+        demo_otp=demo_otp
     )
 
 

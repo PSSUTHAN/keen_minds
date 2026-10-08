@@ -7,6 +7,7 @@ const DoctorLoginModal = ({ isOpen, onClose }) => {
   const { loginAsDoctor, t, speakText } = useKiosk();
   const [phone, setPhone] = useState('9876500001');
   const [otp, setOtp] = useState('');
+  const [demoOtp, setDemoOtp] = useState(null);
   const [otpSent, setOtpSent] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [error, setError] = useState('');
@@ -37,6 +38,7 @@ const DoctorLoginModal = ({ isOpen, onClose }) => {
       const res = await doctorSendOTP(p);
       setPhone(p);
       setOtpSent(true);
+      setDemoOtp(res.demo_otp || null);
       setCooldown(res.cooldown_seconds || 60);
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to send OTP. Mobile not registered as DOCTOR.');
@@ -183,6 +185,17 @@ const DoctorLoginModal = ({ isOpen, onClose }) => {
                 className="w-full text-center tracking-[0.8em] font-mono text-2xl py-2.5 border border-slate-300 bg-white rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-600 focus:bg-blue-50/30 transition-all"
                 autoFocus
               />
+
+              {demoOtp && import.meta.env.VITE_APP_ENV !== 'production' && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center my-2">
+                  <p className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">
+                    Development Demo OTP
+                  </p>
+                  <p className="text-2xl font-mono font-black text-blue-900 tracking-[0.25em] mt-0.5">
+                    {demoOtp}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

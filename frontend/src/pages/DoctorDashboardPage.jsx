@@ -428,6 +428,7 @@ const DoctorDashboardPage = () => {
   const [addPatientStage, setAddPatientStage] = useState('INPUT'); // 'INPUT', 'NOT_FOUND', 'ALREADY_ADDED', 'FOUND', 'OTP_INPUT', 'SUCCESS'
   const [patientLookupResult, setPatientLookupResult] = useState(null);
   const [patientAddOtp, setPatientAddOtp] = useState('');
+  const [patientAddDemoOtp, setPatientAddDemoOtp] = useState(null);
   const [patientAddCooldown, setPatientAddCooldown] = useState(0);
   const [checkingPatient, setCheckingPatient] = useState(false);
   const [sendingPatientOtp, setSendingPatientOtp] = useState(false);
@@ -441,6 +442,7 @@ const DoctorDashboardPage = () => {
   const [loadingAvailable, setLoadingAvailable] = useState(false);
   const [accessModalPatient, setAccessModalPatient] = useState(null);
   const [accessOtp, setAccessOtp] = useState('');
+  const [accessDemoOtp, setAccessDemoOtp] = useState(null);
   const [accessCooldown, setAccessCooldown] = useState(0);
   const [requestingAccess, setRequestingAccess] = useState(false);
   const [verifyingAccess, setVerifyingAccess] = useState(false);
@@ -538,6 +540,7 @@ const DoctorDashboardPage = () => {
   const handleOpenAccessModal = async (patient, isDirectOtp = false) => {
     setAccessModalPatient(patient);
     setAccessOtp('');
+    setAccessDemoOtp(null);
     setAccessError('');
     setAccessSuccessMessage('');
     if (isDirectOtp) {
@@ -552,6 +555,7 @@ const DoctorDashboardPage = () => {
         fetchViewedPatients();
       } else {
         setAccessCooldown(res.cooldown_seconds || 60);
+        setAccessDemoOtp(res.demo_otp || null);
       }
     } catch (err) {
       console.error("Request access error", err);
@@ -568,6 +572,7 @@ const DoctorDashboardPage = () => {
     try {
       const res = await requestPatientAccess(accessModalPatient.patient_id);
       setAccessCooldown(res.cooldown_seconds || 60);
+      setAccessDemoOtp(res.demo_otp || null);
     } catch (err) {
       console.error("Resend access OTP error", err);
       setAccessError(err.response?.data?.detail || "Failed to resend access OTP.");
@@ -738,6 +743,7 @@ const DoctorDashboardPage = () => {
       const res = await doctorSendPatientAssociationOTP(phone);
       setAddPatientStage('OTP_INPUT');
       setPatientAddOtp('');
+      setPatientAddDemoOtp(res.demo_otp || null);
       setPatientAddCooldown(res.cooldown_seconds || 60);
     } catch (err) {
       console.error("Send OTP error", err);
@@ -2280,6 +2286,17 @@ const DoctorDashboardPage = () => {
                             autoFocus
                           />
 
+                          {patientAddDemoOtp && import.meta.env.VITE_APP_ENV !== 'production' && (
+                            <div className="bg-white border border-blue-200 rounded-xl p-3 text-center shadow-xs">
+                              <p className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">
+                                Development Demo OTP
+                              </p>
+                              <p className="text-2xl font-mono font-black text-blue-900 tracking-[0.25em] mt-0.5">
+                                {patientAddDemoOtp}
+                              </p>
+                            </div>
+                          )}
+
 
                           <div className="text-center pt-1">
                             {patientAddCooldown > 0 ? (
@@ -2805,6 +2822,17 @@ const DoctorDashboardPage = () => {
                       className="w-full text-center tracking-[0.4em] font-mono text-2xl font-black py-3 border-2 border-blue-200 focus:border-blue-600 rounded-2xl bg-blue-50/30 focus:bg-white focus:outline-hidden transition-all"
                       autoFocus
                     />
+
+                    {accessDemoOtp && import.meta.env.VITE_APP_ENV !== 'production' && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3.5 text-center my-2">
+                        <p className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">
+                          Development Demo OTP
+                        </p>
+                        <p className="text-2xl font-mono font-black text-blue-900 tracking-[0.25em] mt-0.5">
+                          {accessDemoOtp}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
 

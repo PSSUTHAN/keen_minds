@@ -103,7 +103,7 @@ def send_otp_for_phone(
     db.add(new_otp)
     db.commit()
 
-    # Deliver OTP via configured provider abstraction (FileOTPProvider in dev, SMS in prod)
+    # Deliver OTP via configured provider abstraction (SMS/Kannel in prod, simulated in dev)
     provider = get_otp_provider()
     provider.send_otp(clean_phone, otp_code, purpose, role, expires_at)
 
