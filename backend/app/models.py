@@ -27,7 +27,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     phone = Column(String, unique=True, index=True, nullable=False)
     email = Column(String, nullable=True)
-    role = Column(String, nullable=False, index=True) # "PATIENT", "DOCTOR"
+    role = Column(String, nullable=False, index=True) # "PATIENT", "DOCTOR", "ADMIN"
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=True)
     doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=True)
     is_active = Column(Boolean, default=True)
@@ -88,8 +88,9 @@ class OTPVerification(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     phone = Column(String, index=True, nullable=False)
-    otp_code = Column(String, nullable=False)
-    purpose = Column(String, default="LOGIN") # "LOGIN", "REGISTER"
+    otp_code = Column(String, nullable=True) # Retained for legacy records; new OTPs store hash
+    otp_hash = Column(String(128), nullable=True) # Cryptographic hash of OTP
+    purpose = Column(String, default="LOGIN") # "LOGIN", "REGISTER", etc.
     role = Column(String, default="PATIENT") # "PATIENT", "DOCTOR"
     expires_at = Column(DateTime, nullable=False)
     attempts = Column(Integer, default=0)

@@ -9,10 +9,10 @@ class SendOTPRequest(BaseModel):
     role: str = "PATIENT" # "PATIENT", "DOCTOR"
 
 class SendOTPResponse(BaseModel):
+    success: bool = True
     message: str
-    phone: str
+    phone: Optional[str] = None
     cooldown_seconds: int = 60
-    dev_mock_otp: Optional[str] = None
 
 class PatientRegisterVerifyRequest(BaseModel):
     full_name: Optional[str] = None
@@ -145,11 +145,11 @@ class DoctorPatientSendOTPRequest(BaseModel):
 
 class DoctorPatientSendOTPResponse(BaseModel):
     status: str = "SUCCESS"
+    success: bool = True
     message: str
     phone: str
     masked_phone: str
     cooldown_seconds: int = 60
-    dev_mock_otp: Optional[str] = None
 
 class DoctorPatientVerifyOTPRequest(BaseModel):
     phone: str
@@ -181,13 +181,13 @@ class AvailablePatientsResponse(BaseModel):
 
 class RequestAccessResponse(BaseModel):
     status: str # "ACCESS_PENDING", "AUTHORIZED"
+    success: bool = True
     message: str
     patient_id: int
     formatted_patient_id: str
     patient_name: str
     masked_phone: str
     cooldown_seconds: int = 60
-    dev_mock_otp: Optional[str] = None
 
 class VerifyAccessRequest(BaseModel):
     otp: str
@@ -232,6 +232,8 @@ class PatientCreate(PatientBase):
 class PatientResponse(PatientBase):
     id: int
     created_at: datetime
+    access_token: Optional[str] = None
+    token_type: Optional[str] = "bearer"
     class Config:
         from_attributes = True
 
@@ -330,7 +332,7 @@ class PatientPrescriptionsOverview(BaseModel):
 # --- Patient Medical Record Schemas ---
 class PastMedicalHistoryItem(BaseModel):
     session_id: int
-    session_token: str
+    session_token: Optional[str] = None
     date: datetime
     method: str # "English Method" or "AYUSH Method"
     chief_complaint: Optional[str] = None

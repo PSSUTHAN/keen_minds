@@ -5,7 +5,7 @@ import AudioGuideButton from '../components/AudioGuideButton';
 import { registerPatient, lookupPatient, startKioskSession } from '../services/api';
 
 const RegistrationPage = () => {
-  const { lang, ayushMode, setPatient, setActiveSession, setCurrentPage, t, speakText } = useKiosk();
+  const { lang, ayushMode, setPatient, setActiveSession, setCurrentPage, t, speakText, loginAsPatient } = useKiosk();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -63,7 +63,11 @@ const RegistrationPage = () => {
         abha_id: formData.abha_id || null
       });
 
-      setPatient(registeredPatient);
+      if (registeredPatient.access_token) {
+        loginAsPatient(registeredPatient.access_token, registeredPatient);
+      } else {
+        setPatient(registeredPatient);
+      }
 
       // 2. Start Session
       const session = await startKioskSession(registeredPatient.id, lang, ayushMode);

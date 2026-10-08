@@ -44,8 +44,7 @@ import {
   getPatientReports,
   uploadPatientReport,
   deletePatientReport,
-  getPatientReportViewUrl,
-  getPatientReportDownloadUrl,
+  fetchPatientReportBlob,
   startKioskSession,
   updatePatientProfile 
 } from '../services/api';
@@ -128,6 +127,60 @@ const PatientDashboardPage = () => {
   // Document Viewer Modal State
   const [viewingReportModal, setViewingReportModal] = useState(null);
   const [deletingReportId, setDeletingReportId] = useState(null);
+  const [reportBlobUrl, setReportBlobUrl] = useState(null);
+  const [loadingReportBlob, setLoadingReportBlob] = useState(false);
+  const [reportBlobError, setReportBlobError] = useState('');
+  const [downloadingReportId, setDownloadingReportId] = useState(null);
+
+  useEffect(() => {
+    let activeUrl = null;
+    if (viewingReportModal && patient?.id) {
+      setLoadingReportBlob(true);
+      setReportBlobError('');
+      fetchPatientReportBlob(patient.id, viewingReportModal.id, 'view')
+        .then((blob) => {
+          activeUrl = URL.createObjectURL(blob);
+          setReportBlobUrl(activeUrl);
+        })
+        .catch((err) => {
+          console.error("Failed to load report blob", err);
+          setReportBlobError("Failed to load document securely.");
+        })
+        .finally(() => {
+          setLoadingReportBlob(false);
+        });
+    } else {
+      setReportBlobUrl(null);
+      setReportBlobError('');
+    }
+
+    return () => {
+      if (activeUrl) {
+        URL.revokeObjectURL(activeUrl);
+      }
+    };
+  }, [viewingReportModal, patient?.id]);
+
+  const handleDownloadReport = async (report) => {
+    if (!patient?.id || !report?.id) return;
+    setDownloadingReportId(report.id);
+    try {
+      const blob = await fetchPatientReportBlob(patient.id, report.id, 'download');
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = report.file_name || `report-${report.id}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      console.error("Failed to download report", err);
+      alert("Failed to download report file securely.");
+    } finally {
+      setDownloadingReportId(null);
+    }
+  };
 
   useEffect(() => {
     if (!patient) {
@@ -1277,14 +1330,15 @@ const PatientDashboardPage = () => {
                         <Eye className="w-3.5 h-3.5" />
                         <span>View Report</span>
                       </button>
-                      <a
-                        href={getPatientReportDownloadUrl(patient.id, uploadSuccess.id)}
-                        download={uploadSuccess.file_name}
-                        className="bg-white hover:bg-slate-100 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 border border-slate-300"
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadReport(uploadSuccess)}
+                        disabled={downloadingReportId === uploadSuccess.id}
+                        className="bg-white hover:bg-slate-100 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 border border-slate-300 cursor-pointer"
                       >
                         <Download className="w-3.5 h-3.5" />
                         <span>Download</span>
-                      </a>
+                      </button>
                     </div>
                   </div>
                 )}
@@ -1570,15 +1624,16 @@ const PatientDashboardPage = () => {
                                   <Eye className="w-3.5 h-3.5" />
                                   <span>View</span>
                                 </button>
-                                <a
-                                  href={getPatientReportDownloadUrl(patient.id, rep.id)}
-                                  download={rep.file_name}
-                                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 border border-slate-200 transition-all"
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadReport(rep)}
+                                  disabled={downloadingReportId === rep.id}
+                                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 border border-slate-200 transition-all cursor-pointer"
                                   title="Download original file"
                                 >
                                   <Download className="w-3.5 h-3.5" />
                                   <span>Download</span>
-                                </a>
+                                </button>
                                 <button
                                   onClick={() => handleDeleteReport(rep.id)}
                                   disabled={deletingReportId === rep.id}
@@ -2044,16 +2099,18 @@ const PatientDashboardPage = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <a
-                  href={getPatientReportDownloadUrl(patient?.id, viewingReportModal.id)}
-                  download={viewingReportModal.file_name}
-                  className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1 shadow-sm"
+                <button
+                  type="button"
+                  onClick={() => handleDownloadReport(viewingReportModal)}
+                  disabled={downloadingReportId === viewingReportModal.id}
+                  className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1 shadow-sm cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" /> Download
-                </a>
+                </button>
                 <button
+                  type="button"
                   onClick={() => setViewingReportModal(null)}
-                  className="text-slate-400 hover:text-white p-2 rounded-xl"
+                  className="text-slate-400 hover:text-white p-2 rounded-xl cursor-pointer"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -2061,19 +2118,30 @@ const PatientDashboardPage = () => {
             </div>
 
             <div className="p-4 flex-1 overflow-auto bg-slate-100 flex items-center justify-center min-h-[420px]">
-              {viewingReportModal.mime_type?.includes('pdf') || viewingReportModal.file_name?.toLowerCase().endsWith('.pdf') ? (
-                <iframe
-                  src={getPatientReportViewUrl(patient?.id, viewingReportModal.id)}
-                  title={viewingReportModal.report_name}
-                  className="w-full h-[68vh] rounded-2xl border border-slate-300 bg-white"
-                />
-              ) : (
-                <img
-                  src={getPatientReportViewUrl(patient?.id, viewingReportModal.id)}
-                  alt={viewingReportModal.report_name}
-                  className="max-w-full max-h-[68vh] object-contain rounded-2xl shadow-md bg-white p-2"
-                />
-              )}
+              {loadingReportBlob ? (
+                <div className="flex flex-col items-center gap-2 text-slate-600">
+                  <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
+                  <span className="text-sm font-semibold">Loading document securely...</span>
+                </div>
+              ) : reportBlobError ? (
+                <div className="text-center p-6 bg-white rounded-2xl shadow-sm border border-rose-200 text-rose-600">
+                  <p className="font-bold">{reportBlobError}</p>
+                </div>
+              ) : reportBlobUrl ? (
+                viewingReportModal.mime_type?.includes('pdf') || viewingReportModal.file_name?.toLowerCase().endsWith('.pdf') ? (
+                  <iframe
+                    src={reportBlobUrl}
+                    title={viewingReportModal.report_name}
+                    className="w-full h-[68vh] rounded-2xl border border-slate-300 bg-white"
+                  />
+                ) : (
+                  <img
+                    src={reportBlobUrl}
+                    alt={viewingReportModal.report_name}
+                    className="max-w-full max-h-[68vh] object-contain rounded-2xl shadow-md bg-white p-2"
+                  />
+                )
+              ) : null}
             </div>
           </div>
         </div>

@@ -51,8 +51,7 @@ import {
   createPatientPrescription, 
   updatePrescription, 
   finalizePrescription,
-  getPatientReportViewUrl,
-  getPatientReportDownloadUrl,
+  fetchPatientReportBlob,
   getDoctorDashboardStats,
   getDoctorViewedPatients,
   getAvailablePatients,
@@ -419,13 +418,16 @@ const DoctorDashboardPage = () => {
   const [submittingRx, setSubmittingRx] = useState(false);
   const [rxFormError, setRxFormError] = useState('');
   const [viewingReportModal, setViewingReportModal] = useState(null);
+  const [reportBlobUrl, setReportBlobUrl] = useState(null);
+  const [loadingReportBlob, setLoadingReportBlob] = useState(false);
+  const [reportBlobError, setReportBlobError] = useState('');
+  const [downloadingReportId, setDownloadingReportId] = useState(null);
 
   // New Patient (Find & Add via Patient OTP) State (Tab 3)
   const [addPatientPhone, setAddPatientPhone] = useState('');
   const [addPatientStage, setAddPatientStage] = useState('INPUT'); // 'INPUT', 'NOT_FOUND', 'ALREADY_ADDED', 'FOUND', 'OTP_INPUT', 'SUCCESS'
   const [patientLookupResult, setPatientLookupResult] = useState(null);
   const [patientAddOtp, setPatientAddOtp] = useState('');
-  const [patientAddDevOtp, setPatientAddDevOtp] = useState('');
   const [patientAddCooldown, setPatientAddCooldown] = useState(0);
   const [checkingPatient, setCheckingPatient] = useState(false);
   const [sendingPatientOtp, setSendingPatientOtp] = useState(false);
@@ -439,7 +441,6 @@ const DoctorDashboardPage = () => {
   const [loadingAvailable, setLoadingAvailable] = useState(false);
   const [accessModalPatient, setAccessModalPatient] = useState(null);
   const [accessOtp, setAccessOtp] = useState('');
-  const [accessDevOtp, setAccessDevOtp] = useState('');
   const [accessCooldown, setAccessCooldown] = useState(0);
   const [requestingAccess, setRequestingAccess] = useState(false);
   const [verifyingAccess, setVerifyingAccess] = useState(false);
@@ -550,7 +551,6 @@ const DoctorDashboardPage = () => {
         fetchAvailablePatients(availableSearchQuery);
         fetchViewedPatients();
       } else {
-        setAccessDevOtp(res.dev_mock_otp || '');
         setAccessCooldown(res.cooldown_seconds || 60);
       }
     } catch (err) {
@@ -567,7 +567,6 @@ const DoctorDashboardPage = () => {
     setAccessError('');
     try {
       const res = await requestPatientAccess(accessModalPatient.patient_id);
-      setAccessDevOtp(res.dev_mock_otp || '');
       setAccessCooldown(res.cooldown_seconds || 60);
     } catch (err) {
       console.error("Resend access OTP error", err);
@@ -644,6 +643,58 @@ const DoctorDashboardPage = () => {
     setRecordError('');
   };
 
+  useEffect(() => {
+    let activeUrl = null;
+    const patientId = medicalRecord?.patient_info?.id;
+    if (viewingReportModal && patientId) {
+      setLoadingReportBlob(true);
+      setReportBlobError('');
+      fetchPatientReportBlob(patientId, viewingReportModal.id, 'view')
+        .then((blob) => {
+          activeUrl = URL.createObjectURL(blob);
+          setReportBlobUrl(activeUrl);
+        })
+        .catch((err) => {
+          console.error("Failed to load report blob", err);
+          setReportBlobError("Failed to load document securely.");
+        })
+        .finally(() => {
+          setLoadingReportBlob(false);
+        });
+    } else {
+      setReportBlobUrl(null);
+      setReportBlobError('');
+    }
+
+    return () => {
+      if (activeUrl) {
+        URL.revokeObjectURL(activeUrl);
+      }
+    };
+  }, [viewingReportModal, medicalRecord?.patient_info?.id]);
+
+  const handleDownloadReport = async (report) => {
+    const patientId = medicalRecord?.patient_info?.id;
+    if (!patientId || !report?.id) return;
+    setDownloadingReportId(report.id);
+    try {
+      const blob = await fetchPatientReportBlob(patientId, report.id, 'download');
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = report.file_name || `report-${report.id}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      console.error("Failed to download report", err);
+      alert("Failed to download report file securely.");
+    } finally {
+      setDownloadingReportId(null);
+    }
+  };
+
   // ===================== NEW PATIENT (OTP-VERIFIED ADDITION) HANDLERS =====================
 
   const handleCheckPatientByMobile = async (e) => {
@@ -688,9 +739,6 @@ const DoctorDashboardPage = () => {
       setAddPatientStage('OTP_INPUT');
       setPatientAddOtp('');
       setPatientAddCooldown(res.cooldown_seconds || 60);
-      if (res.dev_mock_otp) {
-        setPatientAddDevOtp(res.dev_mock_otp);
-      }
     } catch (err) {
       console.error("Send OTP error", err);
       setAddPatientError(err.response?.data?.detail || "Failed to send OTP to patient mobile.");
@@ -730,7 +778,6 @@ const DoctorDashboardPage = () => {
     setAddPatientStage('INPUT');
     setPatientLookupResult(null);
     setPatientAddOtp('');
-    setPatientAddDevOtp('');
     setAddPatientError('');
     setAddPatientSuccessData(null);
   };
@@ -1436,15 +1483,15 @@ const DoctorDashboardPage = () => {
                                 <Eye className="w-3.5 h-3.5" />
                                 <span>View</span>
                               </button>
-                              <a
-                                href={getPatientReportDownloadUrl(medicalRecord.patient_info.id, rep.id)}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="bg-slate-200 hover:bg-slate-300 text-slate-800 p-1.5 rounded-lg"
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadReport(rep)}
+                                disabled={downloadingReportId === rep.id}
+                                className="bg-slate-200 hover:bg-slate-300 text-slate-800 p-1.5 rounded-lg cursor-pointer"
                                 title="Download Report"
                               >
                                 <Download className="w-3.5 h-3.5" />
-                              </a>
+                              </button>
                             </div>
                           </div>
                         ))}
@@ -2233,18 +2280,6 @@ const DoctorDashboardPage = () => {
                             autoFocus
                           />
 
-                          {patientAddDevOtp && (
-                            <div className="bg-blue-100 border border-blue-300 p-2.5 rounded-xl flex items-center justify-between text-xs">
-                              <span>Dev Mock OTP: <strong className="font-mono">{patientAddDevOtp}</strong></span>
-                              <button
-                                type="button"
-                                onClick={() => setPatientAddOtp(patientAddDevOtp)}
-                                className="bg-blue-600 text-white font-bold px-2.5 py-1 rounded-lg text-xs cursor-pointer hover:bg-blue-700"
-                              >
-                                Fill OTP
-                              </button>
-                            </div>
-                          )}
 
                           <div className="text-center pt-1">
                             {patientAddCooldown > 0 ? (
@@ -2616,29 +2651,52 @@ const DoctorDashboardPage = () => {
                 <p className="font-bold text-sm">{viewingReportModal.report_name}</p>
                 <p className="text-[11px] text-slate-400">{viewingReportModal.report_type} • {viewingReportModal.file_name}</p>
               </div>
-              <button
-                type="button"
-                onClick={() => setViewingReportModal(null)}
-                className="text-white hover:text-rose-400 p-1"
-              >
-                <X className="w-6 h-6" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadReport(viewingReportModal)}
+                  disabled={downloadingReportId === viewingReportModal.id}
+                  className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1 shadow-sm cursor-pointer"
+                  title="Download Report"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewingReportModal(null)}
+                  className="text-white hover:text-rose-400 p-1 cursor-pointer"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 bg-slate-200 p-2 overflow-hidden flex items-center justify-center">
-              {viewingReportModal.mime_type?.includes('pdf') || viewingReportModal.file_name?.toLowerCase().endsWith('.pdf') ? (
-                <iframe
-                  src={getPatientReportViewUrl(medicalRecord.patient_info.id, viewingReportModal.id)}
-                  title={viewingReportModal.report_name}
-                  className="w-full h-full rounded-2xl border-0 bg-white"
-                />
-              ) : (
-                <img
-                  src={getPatientReportViewUrl(medicalRecord.patient_info.id, viewingReportModal.id)}
-                  alt={viewingReportModal.report_name}
-                  className="max-h-full max-w-full object-contain rounded-2xl"
-                />
-              )}
+              {loadingReportBlob ? (
+                <div className="flex flex-col items-center gap-2 text-slate-600">
+                  <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
+                  <span className="text-sm font-semibold">Loading document securely...</span>
+                </div>
+              ) : reportBlobError ? (
+                <div className="text-center p-6 bg-white rounded-2xl shadow-sm border border-rose-200 text-rose-600">
+                  <p className="font-bold">{reportBlobError}</p>
+                </div>
+              ) : reportBlobUrl ? (
+                viewingReportModal.mime_type?.includes('pdf') || viewingReportModal.file_name?.toLowerCase().endsWith('.pdf') ? (
+                  <iframe
+                    src={reportBlobUrl}
+                    title={viewingReportModal.report_name}
+                    className="w-full h-full rounded-2xl border-0 bg-white"
+                  />
+                ) : (
+                  <img
+                    src={reportBlobUrl}
+                    alt={viewingReportModal.report_name}
+                    className="max-h-full max-w-full object-contain rounded-2xl"
+                  />
+                )
+              ) : null}
             </div>
           </div>
         </div>
@@ -2749,15 +2807,6 @@ const DoctorDashboardPage = () => {
                     />
                   </div>
 
-                  {/* Dev Mock OTP helper badge */}
-                  {accessDevOtp && (
-                    <div className="bg-amber-50 border border-amber-200 p-2.5 rounded-xl text-xs text-amber-800 flex items-center justify-between">
-                      <span>Dev Mock OTP for testing:</span>
-                      <span className="font-mono font-black text-sm bg-white px-2 py-0.5 rounded border border-amber-300">
-                        {accessDevOtp}
-                      </span>
-                    </div>
-                  )}
 
                   {/* Cooldown and Resend */}
                   <div className="flex items-center justify-between text-xs pt-1">

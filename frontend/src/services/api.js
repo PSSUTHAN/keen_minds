@@ -178,13 +178,18 @@ export const deletePatientReport = async (patientId, reportId) => {
 };
 
 export const getPatientReportViewUrl = (patientId, reportId) => {
-  const token = localStorage.getItem('medikiosk_token');
-  return `${API_BASE_URL}/patients/${patientId}/reports/${reportId}/view${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+  return `${API_BASE_URL}/patients/${patientId}/reports/${reportId}/view`;
 };
 
 export const getPatientReportDownloadUrl = (patientId, reportId) => {
-  const token = localStorage.getItem('medikiosk_token');
-  return `${API_BASE_URL}/patients/${patientId}/reports/${reportId}/download${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+  return `${API_BASE_URL}/patients/${patientId}/reports/${reportId}/download`;
+};
+
+export const fetchPatientReportBlob = async (patientId, reportId, mode = 'view') => {
+  const response = await api.get(`/patients/${patientId}/reports/${reportId}/${mode}`, {
+    responseType: 'blob'
+  });
+  return response.data;
 };
 
 // ----------------- LEGACY & KIOSK SUPPORT APIS -----------------

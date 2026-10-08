@@ -1,6 +1,28 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+@theme {
+  --color-primary: #2563EB;
+  --color-primary-dark: #1D4ED8;
+  --color-primary-light: #DBEAFE;
+  --color-primary-bg: #EFF6FF;
+
+  --color-navy: #1E3A8A;
+  --color-navy-dark: #172554;
+  --color-navy-light: #1E40AF;
+
+  --color-appbg: #F8FAFC;
+  --color-bordercolor: #E2E8F0;
+
+  --color-health-dark: #1E3A8A;
+  --color-health-darker: #172554;
+  --color-health-primary: #2563EB;
+  --color-health-mint: #2563EB;
+  --color-health-mintlight: #EFF6FF;
+  --color-health-mintbg: #EFF6FF;
+  --color-health-accent: #1D4ED8;
+  --color-health-alert: #DC2626;
+}
 
 :root {
   --primary: #2563EB;

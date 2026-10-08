@@ -1,20 +1,49 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Optional
 import datetime
 from app.database import get_db
-from app.models import KioskSession, ClinicalSummary, Doctor, Patient
+from app.models import KioskSession, ClinicalSummary, Doctor, Patient, User
 from app.schemas import ClinicalSummaryResponse, DoctorVerifySummaryRequest
 from app.services.ai_service import generate_structured_summary
 from app.services.fhir_service import build_fhir_bundle
+from app.services.auth_service import (
+    get_current_user,
+    require_role,
+    check_doctor_patient_access,
+    log_audit
+)
 
 router = APIRouter(prefix="/summary", tags=["AI Clinical Summary Generator"])
 
+def verify_session_summary_access(session: KioskSession, current_user: User, db: Session):
+    """Verifies that the current user has authorized access to this session's clinical summary."""
+    if current_user.role == "PATIENT":
+        if current_user.patient_id != session.patient_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Forbidden: You cannot access summary for another patient's session."
+            )
+    elif current_user.role == "DOCTOR":
+        if not check_doctor_patient_access(current_user.doctor_id, session.patient_id, db):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access Denied: You must verify patient consent via OTP before accessing clinical summary."
+            )
+    elif current_user.role != "ADMIN":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access Denied.")
+
 @router.post("/generate/{session_id}", response_model=ClinicalSummaryResponse)
-def generate_summary_for_session(session_id: int, db: Session = Depends(get_db)):
+def generate_summary_for_session(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     session = db.query(KioskSession).filter(KioskSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    verify_session_summary_access(session, current_user, db)
 
     history_entries = [
         {
@@ -98,24 +127,78 @@ def generate_summary_for_session(session_id: int, db: Session = Depends(get_db))
     session.status = "awaiting_doctor"
     db.commit()
 
+    log_audit(
+        db,
+        current_user.id,
+        current_user.role,
+        "SUMMARY_GENERATED",
+        "clinical_summary",
+        str(summary_obj.id),
+        f"Generated AI clinical summary for session #{session_id}."
+    )
+
     return summary_obj
 
 @router.get("/session/{session_id}", response_model=ClinicalSummaryResponse)
-def get_session_summary(session_id: int, db: Session = Depends(get_db)):
+def get_session_summary(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    session = db.query(KioskSession).filter(KioskSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    verify_session_summary_access(session, current_user, db)
+
     summary = db.query(ClinicalSummary).filter(ClinicalSummary.session_id == session_id).first()
     if not summary:
         raise HTTPException(status_code=404, detail="Summary not found for this session")
+
+    log_audit(
+        db,
+        current_user.id,
+        current_user.role,
+        "SUMMARY_VIEWED",
+        "clinical_summary",
+        str(summary.id),
+        f"Viewed clinical summary for session #{session_id}."
+    )
+
     return summary
 
 @router.put("/verify/{summary_id}", response_model=ClinicalSummaryResponse)
-def doctor_verify_summary(summary_id: int, payload: DoctorVerifySummaryRequest, db: Session = Depends(get_db)):
+def doctor_verify_summary(
+    summary_id: int,
+    payload: DoctorVerifySummaryRequest,
+    current_user: User = Depends(require_role(["DOCTOR"])),
+    db: Session = Depends(get_db)
+):
     summary = db.query(ClinicalSummary).filter(ClinicalSummary.id == summary_id).first()
     if not summary:
         raise HTTPException(status_code=404, detail="Summary not found")
 
-    doctor = db.query(Doctor).filter(Doctor.id == payload.doctor_id).first()
+    session = db.query(KioskSession).filter(KioskSession.id == summary.session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Ensure the doctor verifying is the authenticated doctor
+    if payload.doctor_id and current_user.doctor_id != payload.doctor_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Cannot verify a summary under another physician's credentials."
+        )
+
+    doctor_id = current_user.doctor_id
+    doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
     if not doctor:
-        raise HTTPException(status_code=404, detail="Doctor not found")
+        raise HTTPException(status_code=404, detail="Doctor profile not found")
+
+    if not check_doctor_patient_access(doctor.id, session.patient_id, db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access Denied: You must verify patient consent via OTP before verifying clinical summary."
+        )
 
     if payload.chief_complaint is not None:
         summary.chief_complaint = payload.chief_complaint
@@ -144,10 +227,19 @@ def doctor_verify_summary(summary_id: int, payload: DoctorVerifySummaryRequest, 
     summary.updated_at = datetime.datetime.utcnow()
 
     # Update kiosk session status to completed
-    session = db.query(KioskSession).filter(KioskSession.id == summary.session_id).first()
-    if session:
-        session.status = "completed"
+    session.status = "completed"
 
     db.commit()
     db.refresh(summary)
+
+    log_audit(
+        db,
+        current_user.id,
+        "DOCTOR",
+        "SUMMARY_VERIFIED",
+        "clinical_summary",
+        str(summary.id),
+        f"Dr. {doctor.name} verified and approved summary #{summary.id}."
+    )
+
     return summary

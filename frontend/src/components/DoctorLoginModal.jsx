@@ -9,7 +9,6 @@ const DoctorLoginModal = ({ isOpen, onClose }) => {
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [cooldown, setCooldown] = useState(0);
-  const [devOtpHint, setDevOtpHint] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -39,9 +38,6 @@ const DoctorLoginModal = ({ isOpen, onClose }) => {
       setPhone(p);
       setOtpSent(true);
       setCooldown(res.cooldown_seconds || 60);
-      if (res.dev_mock_otp) {
-        setDevOtpHint(res.dev_mock_otp);
-      }
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to send OTP. Mobile not registered as DOCTOR.');
     } finally {
@@ -187,21 +183,6 @@ const DoctorLoginModal = ({ isOpen, onClose }) => {
                 className="w-full text-center tracking-[0.8em] font-mono text-2xl py-2.5 border border-slate-300 bg-white rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-600 focus:bg-blue-50/30 transition-all"
                 autoFocus
               />
-
-              {devOtpHint && (
-                <div className="bg-blue-100/80 border border-blue-200 p-2.5 rounded-xl flex items-center justify-between text-xs">
-                  <span className="font-semibold text-blue-950">
-                    OTP: <strong className="font-mono text-sm font-black bg-blue-200 px-2 py-0.5 rounded">{devOtpHint}</strong>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setOtp(devOtpHint)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-1 rounded-lg text-xs cursor-pointer"
-                  >
-                    Auto-fill OTP
-                  </button>
-                </div>
-              )}
             </div>
           )}
 

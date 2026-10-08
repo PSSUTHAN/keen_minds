@@ -50,10 +50,10 @@ def patient_send_otp(payload: SendOTPRequest, db: Session = Depends(get_db)):
     otp_code, cooldown = send_otp_for_phone(phone, payload.purpose.upper(), "PATIENT", db)
 
     return SendOTPResponse(
+        success=True,
         message=f"OTP sent successfully to +91 {phone}",
         phone=phone,
-        cooldown_seconds=cooldown,
-        dev_mock_otp=otp_code
+        cooldown_seconds=cooldown
     )
 
 @router.post("/patient/verify-register", response_model=AuthTokenResponse)
@@ -67,7 +67,7 @@ def patient_verify_and_register(payload: PatientRegisterVerifyRequest, db: Sessi
         raise HTTPException(status_code=400, detail="Invalid mobile number format.")
 
     # 1. Verify OTP
-    verify_otp_for_phone(phone, payload.otp, "REGISTER", db)
+    verify_otp_for_phone(phone, payload.otp, "REGISTER", db, role="PATIENT")
 
     # 2. Calculate Age from DOB if provided
     calculated_age = 45
@@ -188,7 +188,7 @@ def patient_verify_and_login(payload: VerifyOTPLoginRequest, db: Session = Depen
     phone = sanitize_phone(payload.phone)
 
     # 1. Verify OTP
-    verify_otp_for_phone(phone, payload.otp, "LOGIN", db)
+    verify_otp_for_phone(phone, payload.otp, "LOGIN", db, role="PATIENT")
 
     # 2. Fetch Patient
     patient = db.query(Patient).filter(Patient.phone == phone).first()
@@ -292,10 +292,10 @@ def doctor_send_otp(payload: SendOTPRequest, db: Session = Depends(get_db)):
     otp_code, cooldown = send_otp_for_phone(phone, purpose, "DOCTOR", db)
 
     return SendOTPResponse(
+        success=True,
         message=f"Doctor OTP sent successfully to +91 {phone}",
         phone=phone,
-        cooldown_seconds=cooldown,
-        dev_mock_otp=otp_code
+        cooldown_seconds=cooldown
     )
 
 @router.post("/doctor/verify-register", response_model=AuthTokenResponse)
@@ -308,7 +308,7 @@ def doctor_verify_and_register(payload: DoctorRegisterVerifyRequest, db: Session
         raise HTTPException(status_code=400, detail="Invalid doctor mobile number format.")
 
     # 1. Verify OTP
-    verify_otp_for_phone(phone, payload.otp, "REGISTER", db)
+    verify_otp_for_phone(phone, payload.otp, "REGISTER", db, role="DOCTOR")
 
     # 2. Check uniqueness
     if db.query(Doctor).filter(Doctor.phone == phone).first():
@@ -402,7 +402,7 @@ def doctor_verify_and_login(payload: VerifyOTPLoginRequest, db: Session = Depend
     phone = sanitize_phone(payload.phone)
 
     # 1. Verify OTP
-    verify_otp_for_phone(phone, payload.otp, "LOGIN", db)
+    verify_otp_for_phone(phone, payload.otp, "LOGIN", db, role="DOCTOR")
 
     # 2. Verify Doctor entity from DB
     doctor = db.query(Doctor).filter(Doctor.phone == phone).first()

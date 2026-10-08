@@ -5,7 +5,7 @@ import AudioGuideButton from '../components/AudioGuideButton';
 import { patientLogin, registerPatient, listPatients } from '../services/api';
 
 const PatientLoginPage = () => {
-  const { lang, setLang, setPatient, setCurrentPage, t, speakText } = useKiosk();
+  const { lang, setLang, setPatient, setCurrentPage, t, speakText, loginAsPatient } = useKiosk();
 
   const [activeTab, setActiveTab] = useState('login'); // 'login' or 'register'
   const [loginInput, setLoginInput] = useState('');
@@ -52,9 +52,13 @@ const PatientLoginPage = () => {
       // Try login by phone or ABHA
       const isAbha = val.includes('-') || val.length > 12;
       const patient = await patientLogin(isAbha ? null : val, isAbha ? val : null);
-      setPatient(patient);
+      if (patient.access_token) {
+        loginAsPatient(patient.access_token, patient);
+      } else {
+        setPatient(patient);
+        setCurrentPage('dashboard');
+      }
       speakText(`${t.welcomePatient || 'Welcome'}, ${patient.name}`);
-      setCurrentPage('dashboard');
     } catch (err) {
       console.error(err);
       setErrorMsg("Patient record not found. Please check number or register as a new patient.");
@@ -84,9 +88,13 @@ const PatientLoginPage = () => {
         abha_id: regForm.abha_id?.trim() || null
       });
 
-      setPatient(newPatient);
+      if (newPatient.access_token) {
+        loginAsPatient(newPatient.access_token, newPatient);
+      } else {
+        setPatient(newPatient);
+        setCurrentPage('dashboard');
+      }
       speakText(`${t.welcomePatient || 'Welcome'}, ${newPatient.name}`);
-      setCurrentPage('dashboard');
     } catch (err) {
       console.error(err);
       setErrorMsg("Registration failed. Please check connection and try again.");
@@ -96,9 +104,13 @@ const PatientLoginPage = () => {
   };
 
   const handleDemoSelect = (p) => {
-    setPatient(p);
+    if (p.access_token) {
+      loginAsPatient(p.access_token, p);
+    } else {
+      setPatient(p);
+      setCurrentPage('dashboard');
+    }
     speakText(`${t.welcomePatient || 'Welcome'}, ${p.name}`);
-    setCurrentPage('dashboard');
   };
 
   return (

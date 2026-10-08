@@ -46,7 +46,6 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-  const [devOtpHint, setDevOtpHint] = useState('');
 
   // Patient Registration Form
   const [regForm, setRegForm] = useState({
@@ -76,7 +75,6 @@ const LoginPage = () => {
   useEffect(() => {
     setErrorMsg('');
     setSuccessMsg('');
-    setDevOtpHint('');
     setOtpSent(false);
     setOtp('');
 
@@ -113,9 +111,6 @@ const LoginPage = () => {
       setOtpSent(true);
       setCooldown(res.cooldown_seconds || 60);
       setSuccessMsg(res.message || "OTP sent successfully!");
-      if (res.dev_mock_otp) {
-        setDevOtpHint(res.dev_mock_otp);
-      }
       speakText("OTP has been sent to your mobile number.");
     } catch (err) {
       console.error(err);
@@ -319,11 +314,6 @@ const LoginPage = () => {
               <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
               <span>{successMsg}</span>
             </div>
-            {devOtpHint && (
-              <span className="bg-emerald-200 text-emerald-900 font-mono px-2 py-0.5 rounded text-xs">
-                Dev OTP: <strong>{devOtpHint}</strong>
-              </span>
-            )}
           </div>
         )}
 
@@ -400,21 +390,6 @@ const LoginPage = () => {
                   className="w-full text-center tracking-[1em] font-mono text-2xl py-3 border border-slate-300 bg-white rounded-2xl focus:ring-2 focus:ring-blue-100 focus:border-blue-600 focus:bg-blue-50/30 focus:outline-none transition-all"
                   autoFocus
                 />
-
-                {devOtpHint && (
-                  <div className="bg-blue-100/80 border border-blue-200 p-3 rounded-2xl flex items-center justify-between text-xs">
-                    <span className="font-semibold text-blue-950">
-                      OTP Code: <strong className="font-mono text-sm font-black bg-blue-200 px-2 py-0.5 rounded">{devOtpHint}</strong>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setOtp(devOtpHint)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-xl shadow-sm text-xs cursor-pointer"
-                    >
-                      Auto-fill OTP
-                    </button>
-                  </div>
-                )}
 
                 <button
                   type="button"
@@ -674,21 +649,6 @@ const LoginPage = () => {
                     placeholder="• • • • • •"
                     className="w-full text-center tracking-[0.8em] font-mono text-xl py-2.5 border border-slate-300 bg-white rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-600 focus:bg-blue-50/30 transition-all"
                   />
-
-                  {devOtpHint && (
-                    <div className="bg-blue-100/80 border border-blue-200 p-2.5 rounded-xl flex items-center justify-between text-xs">
-                      <span className="font-semibold text-blue-950">
-                        OTP Code: <strong className="font-mono text-sm font-black bg-blue-200 px-2 py-0.5 rounded">{devOtpHint}</strong>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setOtp(devOtpHint)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1 rounded-lg shadow-sm text-xs cursor-pointer"
-                      >
-                        Auto-fill OTP
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -793,21 +753,6 @@ const LoginPage = () => {
                   className="w-full text-center tracking-[1em] font-mono text-2xl py-3 border border-slate-300 bg-white rounded-2xl focus:ring-2 focus:ring-blue-100 focus:border-blue-600 focus:bg-blue-50/30 focus:outline-none transition-all"
                   autoFocus
                 />
-
-                {devOtpHint && (
-                  <div className="bg-blue-100/80 border border-blue-200 p-3 rounded-2xl flex items-center justify-between text-xs">
-                    <span className="font-semibold text-blue-950">
-                      Doctor OTP Code: <strong className="font-mono text-sm font-black bg-blue-200 px-2 py-0.5 rounded">{devOtpHint}</strong>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setOtp(devOtpHint)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-xl shadow-sm text-xs cursor-pointer"
-                    >
-                      Auto-fill OTP
-                    </button>
-                  </div>
-                )}
 
                 <button
                   type="button"

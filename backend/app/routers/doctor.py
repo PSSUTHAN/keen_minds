@@ -300,11 +300,11 @@ def doctor_send_patient_otp(
         otp_code, cooldown = send_otp_for_phone(phone, "REGISTER", "PATIENT", db)
         return {
             "status": "SUCCESS",
+            "success": True,
             "message": f"OTP sent successfully to patient mobile +91 {phone}",
             "phone": phone,
             "masked_phone": mask_phone(phone),
-            "cooldown_seconds": cooldown,
-            "dev_mock_otp": otp_code
+            "cooldown_seconds": cooldown
         }
 
     # Association Flow (DOCTOR_ADD)
@@ -319,11 +319,11 @@ def doctor_send_patient_otp(
 
     return {
         "status": "SUCCESS",
+        "success": True,
         "message": f"OTP sent successfully to patient mobile {masked}",
         "phone": patient.phone,
         "masked_phone": masked,
-        "cooldown_seconds": cooldown,
-        "dev_mock_otp": otp_code
+        "cooldown_seconds": cooldown
     }
 
 @router.post("/patients/verify-otp", response_model=DoctorPatientVerifyOTPResponse)
@@ -353,14 +353,7 @@ def doctor_verify_patient_association_otp(
         raise HTTPException(status_code=400, detail="Doctor profile not associated with this user account.")
 
     # 1. Verify OTP
-    try:
-        verify_otp_for_phone(patient.phone, payload.otp, "DOCTOR_ADD", db)
-    except HTTPException:
-        # Fallback check if mock OTP 123456
-        if payload.otp == "123456":
-            pass
-        else:
-            raise
+    verify_otp_for_phone(patient.phone, payload.otp, "DOCTOR_ADD", db)
 
     # 2. Upsert DoctorPatient relationship
     assoc = db.query(DoctorPatient).filter(
@@ -580,13 +573,13 @@ def request_patient_access(
     if grant and grant.status == "AUTHORIZED":
         return RequestAccessResponse(
             status="AUTHORIZED",
+            success=True,
             message="You already have authorized access to this patient's medical records.",
             patient_id=patient.id,
             formatted_patient_id=f"PT-{patient.id:03d}",
             patient_name=patient.name,
             masked_phone=mask_phone(patient.phone),
-            cooldown_seconds=0,
-            dev_mock_otp=None
+            cooldown_seconds=0
         )
 
     # Dispatch OTP to PATIENT's phone with purpose PATIENT_ACCESS
@@ -596,7 +589,6 @@ def request_patient_access(
         role="PATIENT",
         db=db
     )
-    dev_otp = otp_code
 
     if not grant:
         grant = DoctorPatientAccess(
@@ -625,13 +617,13 @@ def request_patient_access(
 
     return RequestAccessResponse(
         status="ACCESS_PENDING",
+        success=True,
         message=f"Access authorization OTP sent to patient's mobile number {mask_phone(patient.phone)}. Please ask the patient for the 6-digit verification code.",
         patient_id=patient.id,
         formatted_patient_id=f"PT-{patient.id:03d}",
         patient_name=patient.name,
         masked_phone=mask_phone(patient.phone),
-        cooldown_seconds=60,
-        dev_mock_otp=dev_otp
+        cooldown_seconds=60
     )
 
 
@@ -687,14 +679,11 @@ def verify_patient_access(
             db=db
         )
     except HTTPException:
-        # Fallback to DOCTOR_ADD or dev mock OTPs
-        if otp_code in ["123456", "000000"]:
-            pass
-        else:
-            try:
-                verify_otp_for_phone(patient.phone, otp_code, "DOCTOR_ADD", db)
-            except Exception:
-                raise HTTPException(status_code=400, detail="Invalid or expired OTP. Please ask patient for the correct code.")
+        # Fallback to DOCTOR_ADD purpose verification
+        try:
+            verify_otp_for_phone(patient.phone, otp_code, "DOCTOR_ADD", db)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid or expired OTP. Please ask patient for the correct code.")
 
     # Update grant status to AUTHORIZED
     grant.status = "AUTHORIZED"
@@ -992,7 +981,10 @@ def doctor_create_patient_with_otp(
 # --- KIOSK QUEUE & EMERGENCY OPERATIONS ---
 
 @router.get("/queue", response_model=List[KioskSessionResponse])
-def get_doctor_patient_queue(db: Session = Depends(get_db)):
+def get_doctor_patient_queue(
+    current_user: User = Depends(require_role(["DOCTOR", "ADMIN"])),
+    db: Session = Depends(get_db)
+):
     """
     Returns list of all active or awaiting doctor kiosk sessions.
     """
@@ -1000,7 +992,10 @@ def get_doctor_patient_queue(db: Session = Depends(get_db)):
     return sessions
 
 @router.get("/emergency-alerts", response_model=List[EmergencyAlertResponse])
-def get_emergency_alerts(db: Session = Depends(get_db)):
+def get_emergency_alerts(
+    current_user: User = Depends(require_role(["DOCTOR", "ADMIN"])),
+    db: Session = Depends(get_db)
+):
     """
     Returns active red-flag emergency alerts triggered at kiosks.
     """
@@ -1025,7 +1020,11 @@ def get_emergency_alerts(db: Session = Depends(get_db)):
     return results
 
 @router.put("/emergency-alerts/{alert_id}/acknowledge")
-def acknowledge_emergency_alert(alert_id: int, db: Session = Depends(get_db)):
+def acknowledge_emergency_alert(
+    alert_id: int,
+    current_user: User = Depends(require_role(["DOCTOR", "ADMIN"])),
+    db: Session = Depends(get_db)
+):
     alert = db.query(EmergencyAlert).filter(EmergencyAlert.id == alert_id).first()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")

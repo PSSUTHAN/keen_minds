@@ -20,12 +20,13 @@ from app.schemas import (
     PrescriptionResponse,
     PatientReportResponse
 )
-from fastapi.security import HTTPAuthorizationCredentials
+from app.config import settings
 from app.services.auth_service import (
     get_current_user,
     require_role,
     log_audit,
     decode_access_token,
+    create_access_token,
     security_bearer,
     check_doctor_patient_access
 )
@@ -50,37 +51,6 @@ def format_report_response(rep: PatientMedicalReport) -> PatientReportResponse:
         view_url=f"/api/v1/patients/{rep.patient_id}/reports/{rep.id}/view",
         download_url=f"/api/v1/patients/{rep.patient_id}/reports/{rep.id}/download"
     )
-
-def get_user_from_token_or_query(
-    auth_credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_bearer),
-    token: Optional[str] = Query(None),
-    db: Session = Depends(get_db)
-) -> User:
-    """
-    Authenticates user from either Authorization: Bearer <token> or ?token=<token> query parameter.
-    Enables inline PDF/image rendering in iframe/img tags while preserving strict RBAC security.
-    """
-    raw_token = None
-    if auth_credentials and auth_credentials.credentials:
-        raw_token = auth_credentials.credentials
-    elif token:
-        raw_token = token
-
-    if not raw_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required. Provide Authorization header or token query parameter."
-        )
-
-    payload = decode_access_token(raw_token)
-    user_id = payload.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload.")
-
-    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User account not found or deactivated.")
-    return user
 
 class PatientProfileUpdateRequest(BaseModel):
     email: Optional[str] = None
@@ -444,7 +414,7 @@ def get_patient_reports(
 def view_patient_report(
     patient_id: int,
     report_id: int,
-    current_user: User = Depends(get_user_from_token_or_query),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -486,7 +456,7 @@ def view_patient_report(
 def download_patient_report(
     patient_id: int,
     report_id: int,
-    current_user: User = Depends(get_user_from_token_or_query),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -571,46 +541,87 @@ def delete_patient_report(
 
 # ----------------- COMPATIBILITY ENDPOINTS -----------------
 
+def _create_patient_token(patient: Patient, db: Session) -> str:
+    user = db.query(User).filter(User.phone == patient.phone).first()
+    if not user:
+        user = User(
+            phone=patient.phone,
+            email=patient.email,
+            role="PATIENT",
+            patient_id=patient.id,
+            is_active=True
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    elif user.role != "PATIENT":
+        user.role = "PATIENT"
+        user.patient_id = patient.id
+        db.commit()
+
+    return create_access_token({
+        "user_id": user.id,
+        "patient_id": patient.id,
+        "role": "PATIENT",
+        "name": patient.name,
+        "phone": patient.phone
+    })
+
 @router.post("/register", response_model=PatientResponse)
 def register_patient_legacy(payload: PatientCreate, db: Session = Depends(get_db)):
+    target_patient = None
     if payload.abha_id:
         existing = db.query(Patient).filter(Patient.abha_id == payload.abha_id).first()
         if existing:
-            return existing
+            target_patient = existing
 
-    existing_phone = db.query(Patient).filter(Patient.phone == payload.phone).first()
-    if existing_phone:
-        return existing_phone
+    if not target_patient:
+        existing_phone = db.query(Patient).filter(Patient.phone == payload.phone).first()
+        if existing_phone:
+            target_patient = existing_phone
 
-    new_patient = Patient(
-        name=payload.name,
-        dob=payload.dob,
-        age=payload.age,
-        gender=payload.gender,
-        phone=payload.phone,
-        email=payload.email,
-        blood_group=payload.blood_group,
-        address=payload.address,
-        emergency_contact=payload.emergency_contact,
-        preferred_language=payload.preferred_language,
-        abha_id=payload.abha_id
-    )
-    db.add(new_patient)
-    db.commit()
-    db.refresh(new_patient)
-    return new_patient
+    if not target_patient:
+        new_patient = Patient(
+            name=payload.name,
+            dob=payload.dob,
+            age=payload.age,
+            gender=payload.gender,
+            phone=payload.phone,
+            email=payload.email,
+            blood_group=payload.blood_group,
+            address=payload.address,
+            emergency_contact=payload.emergency_contact,
+            preferred_language=payload.preferred_language,
+            abha_id=payload.abha_id
+        )
+        db.add(new_patient)
+        db.commit()
+        db.refresh(new_patient)
+        target_patient = new_patient
+
+    token = _create_patient_token(target_patient, db)
+    res = PatientResponse.from_orm(target_patient)
+    res.access_token = token
+    return res
 
 @router.post("/login", response_model=PatientResponse)
 def patient_login_legacy(payload: PatientLoginRequest, db: Session = Depends(get_db)):
+    target_patient = None
     if payload.abha_id and payload.abha_id.strip():
         patient = db.query(Patient).filter(Patient.abha_id == payload.abha_id.strip()).first()
         if patient:
-            return patient
-    if payload.phone and payload.phone.strip():
+            target_patient = patient
+    if not target_patient and payload.phone and payload.phone.strip():
         patient = db.query(Patient).filter(Patient.phone == payload.phone.strip()).first()
         if patient:
-            return patient
-    raise HTTPException(status_code=404, detail="Patient not found. Please register as a new patient.")
+            target_patient = patient
+    if not target_patient:
+        raise HTTPException(status_code=404, detail="Patient not found. Please register as a new patient.")
+
+    token = _create_patient_token(target_patient, db)
+    res = PatientResponse.from_orm(target_patient)
+    res.access_token = token
+    return res
 
 @router.get("/lookup", response_model=Optional[PatientResponse])
 def lookup_patient(phone: Optional[str] = None, abha_id: Optional[str] = None, db: Session = Depends(get_db)):
@@ -625,11 +636,35 @@ def lookup_patient(phone: Optional[str] = None, abha_id: Optional[str] = None, d
     raise HTTPException(status_code=404, detail="Patient record not found")
 
 @router.get("/list", response_model=List[PatientResponse])
-def list_patients(db: Session = Depends(get_db)):
+def list_patients(
+    db: Session = Depends(get_db)
+):
+    # In production, public listing of patients is blocked for confidentiality
+    if settings.APP_ENV == "production":
+        return []
     return db.query(Patient).order_by(Patient.id.desc()).limit(20).all()
 
 @router.get("/{patient_id}/history")
-def get_patient_history(patient_id: int, db: Session = Depends(get_db)):
+def get_patient_history(
+    patient_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.role == "PATIENT":
+        if current_user.patient_id != patient_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Forbidden: You cannot view another patient's medical history."
+            )
+    elif current_user.role == "DOCTOR":
+        if not check_doctor_patient_access(current_user.doctor_id, patient_id, db):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access Denied: You must verify patient consent via OTP before viewing their medical history."
+            )
+    elif current_user.role != "ADMIN":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access Denied.")
+
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")

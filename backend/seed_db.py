@@ -142,6 +142,21 @@ def seed_database():
                 u.doctor_id = doc.id
             db.commit()
 
+        # Seed Administrator User account
+        admin_u = db.query(User).filter(User.phone == "9876500000").first()
+        if not admin_u:
+            admin_u = User(
+                phone="9876500000",
+                email="admin@medikiosk.in",
+                role="ADMIN",
+                is_active=True
+            )
+            db.add(admin_u)
+        else:
+            admin_u.role = "ADMIN"
+            admin_u.is_active = True
+        db.commit()
+
         # 2. Seed or Update Patient 1 (Ramesh Kumar)
         p1 = db.query(Patient).filter(Patient.phone == "9876543210").first()
         if not p1:

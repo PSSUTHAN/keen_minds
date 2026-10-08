@@ -26,7 +26,6 @@ const DoctorLoginPage = () => {
   const [errorMsg, setErrorMsg] = useState('');
   const [doctorNotFound, setDoctorNotFound] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
-  const [devOtpHint, setDevOtpHint] = useState('');
 
   // Cooldown countdown
   useEffect(() => {
@@ -61,9 +60,6 @@ const DoctorLoginPage = () => {
       setOtpSent(true);
       setCooldown(res.cooldown_seconds || 60);
       setSuccessMsg(res.message || "OTP sent successfully to registered physician number.");
-      if (res.dev_mock_otp) {
-        setDevOtpHint(res.dev_mock_otp);
-      }
       speakText("OTP sent to your registered mobile number.");
     } catch (err) {
       console.error(err);
@@ -182,11 +178,6 @@ const DoctorLoginPage = () => {
               <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
               <span>{successMsg}</span>
             </div>
-            {devOtpHint && (
-              <span className="bg-emerald-200 text-emerald-900 font-mono px-2 py-0.5 rounded text-xs">
-                OTP: <strong>{devOtpHint}</strong>
-              </span>
-            )}
           </div>
         )}
 
@@ -280,21 +271,6 @@ const DoctorLoginPage = () => {
               className="w-full text-center tracking-[1em] font-mono text-2xl py-3 border border-slate-300 bg-white rounded-2xl focus:ring-2 focus:ring-blue-100 focus:border-blue-600 focus:bg-blue-50/30 focus:outline-none shadow-sm transition-all"
               autoFocus
             />
-
-            {devOtpHint && (
-              <div className="bg-blue-100/80 border border-blue-200 p-2.5 rounded-2xl flex items-center justify-between text-xs">
-                <span className="font-semibold text-blue-950">
-                  Dev OTP: <strong className="font-mono text-sm font-black bg-blue-200 px-2 py-0.5 rounded">{devOtpHint}</strong>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setOtp(devOtpHint)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1 rounded-xl text-xs cursor-pointer"
-                >
-                  Auto-fill
-                </button>
-              </div>
-            )}
 
             <button
               type="button"

@@ -105,6 +105,9 @@ tmp/
 temp/
 *.tmp
 *.temp
+runtime/
+runtime/otp/
+runtime/otp/latest_otp.txt
 
 # ---------- Cache ----------
 .cache/
