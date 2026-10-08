@@ -1107,7 +1107,7 @@ const DoctorDashboardPage = () => {
             </p>
           </div>
 
-          {/* Navigation Links: Dashboard, My Patients, Available Patients, New Patient */}
+          {/* Navigation Links: Dashboard, My Patients, New Patient */}
           <nav className="flex-1 px-3 py-2 space-y-1.5">
             <button
               type="button"
@@ -1138,26 +1138,6 @@ const DoctorDashboardPage = () => {
               {viewedPatientsList.length > 0 && (
                 <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full font-mono font-bold">
                   {viewedPatientsList.length}
-                </span>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleNavSelect('available_patients')}
-              className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl font-bold text-sm transition-all cursor-pointer ${
-                sidebarTab === 'available_patients' && !selectedPatientId
-                  ? "bg-blue-50 text-blue-700 border-l-4 border-blue-600 font-bold shadow-xs"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-blue-600"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <ClipboardList className={`w-5 h-5 ${sidebarTab === 'available_patients' && !selectedPatientId ? "text-blue-600" : "text-slate-500"}`} />
-                <span>Available Patients</span>
-              </div>
-              {availablePatientsList.length > 0 && (
-                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full font-mono font-bold">
-                  {availablePatientsList.length}
                 </span>
               )}
             </button>
@@ -1237,7 +1217,7 @@ const DoctorDashboardPage = () => {
                 className="bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 border border-blue-200 cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
-                <span>Back to {sidebarTab === 'viewed_patients' ? 'My Patients' : sidebarTab === 'available_patients' ? 'Available Patients' : 'Dashboard'}</span>
+                <span>Back to {sidebarTab === 'viewed_patients' ? 'My Patients' : 'Dashboard'}</span>
               </button>
             )}
           </div>
@@ -1751,14 +1731,14 @@ const DoctorDashboardPage = () => {
                       <Users className="w-12 h-12 text-slate-300 mx-auto" />
                       <h3 className="font-bold text-slate-700 text-base">No authorized patients yet</h3>
                       <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                        Patients will appear here once you request and verify access via patient OTP in Available Patients, or add them using New Patient.
+                        Patients will appear here once you add them using New Patient.
                       </p>
                       <button
                         type="button"
-                        onClick={() => handleNavSelect('available_patients')}
+                        onClick={() => handleNavSelect('new_patient')}
                         className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs cursor-pointer shadow-sm"
                       >
-                        Browse Available Patients
+                        Add New Patient
                       </button>
                     </div>
                   ) : (

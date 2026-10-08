@@ -289,7 +289,7 @@ def doctor_send_otp(payload: SendOTPRequest, db: Session = Depends(get_db)):
         if doctor:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="A doctor account with this mobile number already exists. Please log in."
+                detail="An account with this mobile number already exists."
             )
 
     otp_code, cooldown = send_otp_for_phone(phone, purpose, "DOCTOR", db)
@@ -304,11 +304,13 @@ def doctor_send_otp(payload: SendOTPRequest, db: Session = Depends(get_db)):
     )
 
 @router.post("/doctor/verify-register", response_model=AuthTokenResponse)
+@router.post("/doctor/register", response_model=AuthTokenResponse)
 def doctor_verify_and_register(payload: DoctorRegisterVerifyRequest, db: Session = Depends(get_db)):
     """
     Verifies OTP and creates Doctor record and User record with secure DOCTOR role.
+    Accessible via both /auth/doctor/verify-register and /auth/doctor/register.
     """
-    phone = sanitize_phone(payload.phone)
+    phone = sanitize_phone(payload.phone or payload.mobile)
     if not phone or len(phone) < 10:
         raise HTTPException(status_code=400, detail="Invalid doctor mobile number format.")
 
@@ -317,31 +319,52 @@ def doctor_verify_and_register(payload: DoctorRegisterVerifyRequest, db: Session
 
     # 2. Check uniqueness
     if db.query(Doctor).filter(Doctor.phone == phone).first():
-        raise HTTPException(status_code=400, detail="Mobile number is already registered.")
+        raise HTTPException(status_code=400, detail="An account with this mobile number already exists.")
 
-    reg_no = payload.registration_no.strip()
+    reg_no = (payload.registration_no or payload.medical_registration_number or "").strip()
+    if not reg_no:
+        raise HTTPException(status_code=400, detail="Medical registration number is required.")
+
     if db.query(Doctor).filter(Doctor.registration_no == reg_no).first():
-        raise HTTPException(status_code=400, detail="Medical Registration Number is already registered.")
+        raise HTTPException(status_code=400, detail="Medical registration number is already registered.")
 
     if payload.email and payload.email.strip():
         if db.query(Doctor).filter(Doctor.email == payload.email.strip()).first():
-            raise HTTPException(status_code=400, detail="Email address is already registered.")
+            raise HTTPException(status_code=400, detail="An account with this email address already exists.")
 
     # 3. Create Doctor Record
-    doc_name = payload.name.strip()
+    doc_name = (payload.name or payload.full_name or "").strip()
+    if not doc_name:
+        raise HTTPException(status_code=400, detail="Full name is required.")
+
     if not doc_name.lower().startswith("dr.") and not doc_name.lower().startswith("dr "):
         doc_name = f"Dr. {doc_name}"
 
+    specialty = (payload.specialty or payload.specialization or "General Physician & Internal Medicine").strip()
+    qualification = (payload.qualification or "").strip()
+    if not qualification:
+        raise HTTPException(status_code=400, detail="Qualification is required.")
+
+    hospital_name = (payload.hospital_name or payload.hospital_clinic or "").strip()
+    if not hospital_name:
+        raise HTTPException(status_code=400, detail="Hospital / Clinic is required.")
+
+    department = (payload.department or "").strip()
+    if not department:
+        raise HTTPException(status_code=400, detail="Department is required.")
+
+    exp_years = payload.experience if payload.experience is not None else (payload.experience_years or 0)
+
     new_doc = Doctor(
         name=doc_name,
-        specialty=payload.specialty.strip(),
+        specialty=specialty,
         registration_no=reg_no,
         phone=phone,
         email=payload.email.strip() if payload.email else None,
-        qualification=payload.qualification.strip(),
-        experience_years=payload.experience_years or 0,
-        hospital_name=payload.hospital_name.strip() if payload.hospital_name else "MediKiosk OPD",
-        department=payload.department.strip() if payload.department else "OPD Medicine"
+        qualification=qualification,
+        experience_years=exp_years,
+        hospital_name=hospital_name,
+        department=department
     )
     db.add(new_doc)
     db.commit()

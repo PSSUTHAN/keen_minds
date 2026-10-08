@@ -87,16 +87,63 @@ class DoctorResponse(DoctorBase):
         from_attributes = True
 
 class DoctorRegisterVerifyRequest(BaseModel):
-    name: str # Doctor Full Name *
-    phone: str # Mobile Number *
-    email: Optional[str] = None
-    registration_no: str # Medical Registration Number *
-    specialty: str # Specialization *
-    qualification: str # Qualification *
-    experience_years: Optional[int] = 0
-    hospital_name: Optional[str] = None
-    department: Optional[str] = None
+    name: Optional[str] = None # Doctor Full Name *
+    full_name: Optional[str] = None
+    phone: Optional[str] = None # Mobile Number *
+    mobile: Optional[str] = None
+    email: Optional[str] = None # Email Address *
+    registration_no: Optional[str] = None # Medical Registration Number *
+    medical_registration_number: Optional[str] = None
+    specialty: Optional[str] = None # Specialization *
+    specialization: Optional[str] = None
+    qualification: Optional[str] = None # Qualification *
+    experience_years: Optional[int] = 0 # Years of Experience *
+    experience: Optional[int] = None
+    hospital_name: Optional[str] = None # Hospital / Clinic *
+    hospital_clinic: Optional[str] = None
+    department: Optional[str] = None # Department *
     otp: str
+
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_fields(cls, data: Any):
+        if isinstance(data, dict):
+            # name / full_name
+            name_val = data.get('full_name') or data.get('name')
+            if name_val:
+                data['name'] = name_val
+                data['full_name'] = name_val
+            
+            # phone / mobile
+            phone_val = data.get('mobile') or data.get('phone')
+            if phone_val:
+                data['phone'] = phone_val
+                data['mobile'] = phone_val
+                
+            # registration_no / medical_registration_number
+            reg_val = data.get('medical_registration_number') or data.get('registration_no')
+            if reg_val:
+                data['registration_no'] = reg_val
+                data['medical_registration_number'] = reg_val
+                
+            # specialty / specialization
+            spec_val = data.get('specialization') or data.get('specialty')
+            if spec_val:
+                data['specialty'] = spec_val
+                data['specialization'] = spec_val
+                
+            # experience_years / experience
+            exp_val = data.get('experience') if data.get('experience') is not None else data.get('experience_years')
+            if exp_val is not None:
+                data['experience_years'] = exp_val
+                data['experience'] = exp_val
+                
+            # hospital_name / hospital_clinic
+            hosp_val = data.get('hospital_clinic') or data.get('hospital_name')
+            if hosp_val:
+                data['hospital_name'] = hosp_val
+                data['hospital_clinic'] = hosp_val
+        return data
 
 class DoctorStatsResponse(BaseModel):
     viewed_patients_count: int

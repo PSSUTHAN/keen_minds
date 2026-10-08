@@ -47,6 +47,11 @@ export const doctorVerifyRegister = async (registrationData) => {
   return response.data;
 };
 
+export const doctorRegister = async (registrationData) => {
+  const response = await api.post('/auth/doctor/register', registrationData);
+  return response.data;
+};
+
 export const doctorVerifyLogin = async (phone, otp) => {
   const response = await api.post('/auth/doctor/verify-login', { phone, otp, role: 'DOCTOR' });
   return response.data;

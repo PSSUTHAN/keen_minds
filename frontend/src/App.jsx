@@ -32,9 +32,9 @@ const MainContent = () => {
     case 'completion':
       return <CompletionPage />;
     case 'doctor-login':
-      return <DoctorLoginPage />;
+      return <DoctorLoginPage initialTab="login" />;
     case 'doctor-register':
-      return <DoctorRegisterPage />;
+      return <DoctorLoginPage initialTab="register" />;
     case 'doctor':
       return doctorUser && userRole === 'DOCTOR' ? <DoctorDashboardPage /> : <DoctorLoginPage />;
     case 'register':
