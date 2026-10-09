@@ -1,0 +1,181 @@
+<USER_REQUEST>
+I have an existing MediKiosk application built with React + Vite and FastAPI. Patient and Doctor OTP authentication is currently failing.
+
+The frontend displays:
+
+"Failed to send OTP. Please try again."
+
+In Chrome DevTools → Network, the request URL appears as:
+
+`https://http://127.0.0.1:8000/api/v1/auth/patient/send-otp`
+
+I need you to inspect the existing codebase, identify the actual root cause, and fix the OTP delivery flow without redesigning the application.
+
+## 1. Fix the malformed API base URL
+
+Inspect the frontend environment configuration and API service files.
+
+Search for:
+- `VITE_API_BASE_URL`
+- `API_BASE_URL`
+- Axios baseURL configuration
+- Fetch API URLs
+- `/api/v1/auth/patient/send-otp`
+- `/api/v1/auth/doctor/send-otp`
+
+The current URL incorrectly combines HTTPS with an HTTP URL.
+
+Correct the URL construction so that the final request URL is exactly:
+
+`http://127.0.0.1:8000/api/v1/auth/patient/send-otp`
+
+for local development, assuming FastAPI is running on port 8000.
+
+Use a consistent environment configuration, for example:
+
+`VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1`
+
+Construct endpoint paths relative to this base URL. Do not prepend another `https://` or `http://`.
+
+Inspect the actual project configuration and fix the underlying cause rather than merely changing the displayed error.
+
+After changing Vite environment variables, restart the frontend development server.
+
+## 2. Inspect the FastAPI backend
+
+Check whether FastAPI is running and whether the endpoint actually exists.
+
+Verify the registered routes using FastAPI's `/docs` page.
+
+Check the existing endpoint paths, HTTP methods, request schemas, and router prefixes.
+
+Do not invent duplicate endpoints if equivalent endpoints already exist.
+
+The frontend must call the correct existing endpoint for both Patient and Doctor authentication.
+
+## 3. Diagnose the actual failure
+
+Inspect the browser Network request and FastAPI terminal output.
+
+Determine whether the problem is caused by:
+- Malformed API URL
+- Backend not running
+- Incorrect endpoint or HTTP method
+- CORS configuration
+- Invalid request payload
+- Backend exception
+- Kannel connection failure
+- Invalid Kannel credentials
+- Missing SMSC/SMPP configuration
+
+Fix the actual cause. Do not simply suppress the error message.
+
+## 4. Verify the OTP backend flow
+
+Keep OTP generation and verification in FastAPI.
+
+The backend should:
+1. Validate the submitted mobile number and role.
+2. Identify the correct registered patient or doctor.
+3. Generate a cryptographically secure six-digit OTP.
+4. Store an OTP hash and expiration in the existing OTP storage system.
+5. Send the SMS through the existing Kannel integration.
+6. Return a safe response without exposing the OTP in production.
+
+Maintain the existing five-minute OTP expiry, attempt limits, resend cooldown, and one-time-use behavior if already implemented.
+
+Do not create a second OTP service or database model unnecessarily.
+
+## 5. Verify Kannel connectivity
+
+Inspect the existing backend Kannel configuration.
+
+Verify:
+- `KANNEL_URL`
+- `KANNEL_USERNAME`
+- `KANNEL_PASSWORD`
+- Kannel `sendsms` endpoint
+- Kannel `sendsms-user` configuration
+- SMSC/SMPP provider connection status
+
+For local development, the configured endpoint may be:
+
+`http://127.0.0.1:13013/cgi-bin/sendsms`
+
+Use the actual configuration found in the project.
+
+Never expose Kannel credentials in React or return them through an API.
+
+Check the HTTP response from Kannel and distinguish between:
+- Request accepted by Kannel
+- Request rejected by Kannel
+- Connection failure
+- SMSC/provider delivery failure
+
+A successful Kannel acceptance response does not necessarily mean the phone received the SMS.
+
+## 6. Improve error handling
+
+Keep the existing UI and styling.
+
+Display a useful user-facing message for each failure, such as:
+
+- Invalid mobile number
+- Unable to connect to the authentication server
+- OTP service temporarily unavailable
+- Unable to send OTP at this time
+
+Log diagnostic information on the backend without logging the OTP, full SMS message, or credentials.
+
+Do not expose internal stack traces to the frontend.
+
+## 7. Test the complete flow
+
+Test these steps:
+
+1. Start FastAPI.
+2. Start the React/Vite frontend.
+3. Enter a registered patient's mobile number.
+4. Click Send OTP.
+5. Confirm the request uses the correct HTTP URL.
+6. Confirm FastAPI receives the request.
+7. Confirm FastAPI generates and stores the OTP correctly.
+8. Confirm Kannel accepts the SMS request.
+9. Repeat for Doctor authentication.
+10. Verify the OTP through the existing verification endpoint.
+
+If Kannel is not connected to a working SMSC/SMPP provider or GSM modem/SIM, clearly report that real SMS delivery cannot yet be verified.
+
+Do not claim successful delivery without evidence.
+
+## 8. Preserve the existing application
+
+Do not redesign the Patient Login or Doctor Login screens.
+
+Do not modify unrelated dashboard features, registration forms, medical records, prescriptions, or AI consultation.
+
+Do not introduce a hardcoded OTP or universal OTP bypass.
+
+If development-only Demo OTP functionality already exists, preserve its current intended behavior, but never expose demo OTPs in production.
+
+## Final report
+
+After making the changes, report:
+1. Root cause of the failure.
+2. Files changed.
+3. Correct API base URL.
+4. Whether FastAPI receives the request.
+5. Whether Kannel accepts the SMS request.
+6. Whether real SMS delivery was verified.
+7. Any remaining configuration required.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-10-09T06:18:17+05:30.
+
+The user's current state is as follows:
+Active Document: c:\Users\pssut\OneDrive\Documents\KPR\Medikiosk\frontend\src\services\api.js (LANGUAGE_UNSPECIFIED)
+Cursor is on line: 6
+Other open documents:
+- c:\Users\pssut\OneDrive\Documents\KPR\Medikiosk\backend\runtime\otp\latest_otp.txt (LANGUAGE_UNSPECIFIED)
+- c:\Users\pssut\OneDrive\Documents\KPR\Medikiosk\.gitignore (LANGUAGE_UNSPECIFIED)
+</ADDITIONAL_METADATA>

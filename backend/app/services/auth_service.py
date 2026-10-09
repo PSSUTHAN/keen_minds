@@ -104,8 +104,13 @@ def send_otp_for_phone(
     db.commit()
 
     # Deliver OTP via configured provider abstraction (SMS/Kannel in prod, simulated in dev)
-    provider = get_otp_provider()
-    provider.send_otp(clean_phone, otp_code, purpose, role, expires_at)
+    try:
+        provider = get_otp_provider()
+        provider.send_otp(clean_phone, otp_code, purpose, role, expires_at)
+    except Exception:
+        db.delete(new_otp)
+        db.commit()
+        raise
 
     return otp_code, settings.OTP_COOLDOWN_SECONDS
 

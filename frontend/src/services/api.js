@@ -1,6 +1,17 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://keen-minds-d3zu.onrender.com/api/v1';
+const getBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL;
+  if (envUrl) {
+    let clean = envUrl.trim().replace(/\/+$/, '');
+    // Sanitize any accidentally duplicated protocol schemes (e.g., https://http:// -> http://)
+    clean = clean.replace(/^https?:\/\/(https?:\/\/)/i, '$1');
+    return clean.endsWith('/api/v1') ? clean : `${clean}/api/v1`;
+  }
+  return 'http://127.0.0.1:8000/api/v1';
+};
+
+const API_BASE_URL = getBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,

@@ -23,7 +23,7 @@ def test_full_otp_and_rbac_lifecycle():
     assert resp.status_code == 200, resp.text
     data = resp.json()
     assert data["phone"] == reg_phone
-    otp_code = data.get("dev_mock_otp", "123456")
+    otp_code = data.get("demo_otp") or data.get("dev_mock_otp", "123456")
     print(f"OTP sent for registration: {otp_code}")
 
     # Cooldown check: Immediate second request should be rate-limited (cooldown)
@@ -84,7 +84,7 @@ def test_full_otp_and_rbac_lifecycle():
     ramesh_phone = "9876543210"
     resp = requests.post(f"{BASE_URL}/auth/patient/send-otp", json={"phone": ramesh_phone, "purpose": "LOGIN"})
     assert resp.status_code == 200, resp.text
-    ramesh_otp = resp.json().get("dev_mock_otp", "123456")
+    ramesh_otp = resp.json().get("demo_otp") or resp.json().get("dev_mock_otp", "123456")
     
     resp_login = requests.post(f"{BASE_URL}/auth/patient/verify-login", json={"phone": ramesh_phone, "otp": ramesh_otp})
     assert resp_login.status_code == 200, resp_login.text
@@ -121,7 +121,7 @@ def test_full_otp_and_rbac_lifecycle():
     # Doctor A: Dr. Rajesh Sharma (9876500001)
     resp = requests.post(f"{BASE_URL}/auth/doctor/send-otp", json={"phone": "9876500001", "role": "DOCTOR"})
     assert resp.status_code == 200, resp.text
-    doc_a_otp = resp.json().get("dev_mock_otp", "123456")
+    doc_a_otp = resp.json().get("demo_otp") or resp.json().get("dev_mock_otp", "123456")
     resp_doc_a = requests.post(f"{BASE_URL}/auth/doctor/verify-login", json={"phone": "9876500001", "otp": doc_a_otp, "role": "DOCTOR"})
     assert resp_doc_a.status_code == 200, resp_doc_a.text
     doc_a_token = resp_doc_a.json()["access_token"]
@@ -132,7 +132,7 @@ def test_full_otp_and_rbac_lifecycle():
     # Doctor B: Dr. Ananya Sundaram (9876500002)
     resp = requests.post(f"{BASE_URL}/auth/doctor/send-otp", json={"phone": "9876500002", "role": "DOCTOR"})
     assert resp.status_code == 200, resp.text
-    doc_b_otp = resp.json().get("dev_mock_otp", "123456")
+    doc_b_otp = resp.json().get("demo_otp") or resp.json().get("dev_mock_otp", "123456")
     resp_doc_b = requests.post(f"{BASE_URL}/auth/doctor/verify-login", json={"phone": "9876500002", "otp": doc_b_otp, "role": "DOCTOR"})
     assert resp_doc_b.status_code == 200, resp_doc_b.text
     doc_b_token = resp_doc_b.json()["access_token"]

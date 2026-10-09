@@ -33,11 +33,20 @@ class Settings(BaseSettings):
     OTP_MODE: str = os.getenv("OTP_MODE", "sms") # "sms" | "production"
     OTP_FILE_PATH: str = os.getenv("OTP_FILE_PATH", "")
     OTP_EXPIRE_MINUTES: int = int(os.getenv("OTP_EXPIRY_MINUTES", os.getenv("OTP_EXPIRE_MINUTES", "5")))
-    OTP_COOLDOWN_SECONDS: int = int(os.getenv("OTP_RESEND_COOLDOWN_SECONDS", os.getenv("OTP_COOLDOWN_SECONDS", "30")))
+    OTP_COOLDOWN_SECONDS: int = int(os.getenv("OTP_RESEND_COOLDOWN_SECONDS", os.getenv("OTP_COOLDOWN_SECONDS", "60")))
     OTP_MAX_ATTEMPTS: int = int(os.getenv("OTP_MAX_ATTEMPTS", "5"))
     DEV_MOCK_OTP: str = os.getenv("DEV_MOCK_OTP", "")
     
-    # SMS Gateway Provider Configs
+    # Kannel SMS Gateway Configuration
+    KANNEL_URL: str = os.getenv("KANNEL_URL", "http://127.0.0.1:13013/cgi-bin/sendsms")
+    KANNEL_USERNAME: str = os.getenv("KANNEL_USERNAME", "kannel")
+    KANNEL_PASSWORD: str = os.getenv("KANNEL_PASSWORD", "kannel")
+    KANNEL_FROM: str = os.getenv("KANNEL_FROM", "MEDKSK")
+    KANNEL_DLR_MASK: str = os.getenv("KANNEL_DLR_MASK", "31")
+    KANNEL_DLR_URL: str = os.getenv("KANNEL_DLR_URL", "")
+    KANNEL_TIMEOUT_SECONDS: float = float(os.getenv("KANNEL_TIMEOUT_SECONDS", "3.0"))
+    
+    # Generic SMS Gateway Provider Configs
     SMS_API_KEY: str = os.getenv("SMS_API_KEY", "")
     SMS_SENDER_ID: str = os.getenv("SMS_SENDER_ID", "MEDKSK")
     SMS_TEMPLATE_ID: str = os.getenv("SMS_TEMPLATE_ID", "")
@@ -56,15 +65,19 @@ class Settings(BaseSettings):
 
     def __init__(self, **values):
         super().__init__(**values)
-        if self.SHOW_DEMO_OTP is None:
-            raw = os.getenv("SHOW_DEMO_OTP")
-            if raw is not None:
-                self.SHOW_DEMO_OTP = raw.lower() in ("true", "1", "yes")
+        if "SHOW_DEMO_OTP" not in values:
+            if self.APP_ENV == "production":
+                self.SHOW_DEMO_OTP = False
             else:
-                self.SHOW_DEMO_OTP = (self.APP_ENV != "production")
+                raw = os.getenv("SHOW_DEMO_OTP")
+                if raw is not None:
+                    self.SHOW_DEMO_OTP = raw.lower() in ("true", "1", "yes")
+                else:
+                    self.SHOW_DEMO_OTP = True
     
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
     def get_cors_origins(self) -> List[str]:
         """Returns parsed, trimmed list of allowed CORS origins."""
