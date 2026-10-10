@@ -113,8 +113,12 @@ const LoginPage = () => {
       setOtpSent(true);
       setDemoOtp(res.demo_otp || null);
       setCooldown(res.cooldown_seconds || 60);
-      setSuccessMsg(res.message || "OTP sent successfully!");
-      speakText("OTP has been sent to your mobile number.");
+      setSuccessMsg(res.message || (res.demo_otp ? "Demo OTP generated successfully!" : "OTP sent successfully!"));
+      if (res.demo_otp) {
+        speakText("Demo mode active. Your verification code is displayed on screen.");
+      } else {
+        speakText("OTP has been sent to your mobile number.");
+      }
     } catch (err) {
       console.error(err);
       const detail = err.response?.data?.detail || "Failed to send OTP. Please try again.";
@@ -394,13 +398,16 @@ const LoginPage = () => {
                   autoFocus
                 />
 
-                {demoOtp && import.meta.env.VITE_APP_ENV !== 'production' && (
+                {demoOtp && (
                   <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3.5 text-center">
                     <p className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">
-                      Development Demo OTP
+                      DEVELOPMENT DEMO OTP
                     </p>
                     <p className="text-2xl font-mono font-black text-blue-900 tracking-[0.25em] mt-0.5">
                       {demoOtp}
+                    </p>
+                    <p className="text-xs text-blue-600 font-medium mt-1">
+                      Demo Mode Active — No SMS gateway required
                     </p>
                   </div>
                 )}
@@ -664,13 +671,16 @@ const LoginPage = () => {
                     className="w-full text-center tracking-[0.8em] font-mono text-xl py-2.5 border border-slate-300 bg-white rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-600 focus:bg-blue-50/30 transition-all"
                   />
 
-                  {demoOtp && import.meta.env.VITE_APP_ENV !== 'production' && (
+                  {demoOtp && (
                     <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
                       <p className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">
-                        Development Demo OTP
+                        DEVELOPMENT DEMO OTP
                       </p>
                       <p className="text-xl font-mono font-black text-blue-900 tracking-[0.25em] mt-0.5">
                         {demoOtp}
+                      </p>
+                      <p className="text-xs text-blue-600 font-medium mt-1">
+                        Demo Mode Active — No SMS gateway required
                       </p>
                     </div>
                   )}
@@ -779,13 +789,16 @@ const LoginPage = () => {
                   autoFocus
                 />
 
-                {demoOtp && import.meta.env.VITE_APP_ENV !== 'production' && (
+                {demoOtp && (
                   <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3.5 text-center">
                     <p className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">
-                      Development Demo OTP
+                      DEVELOPMENT DEMO OTP
                     </p>
                     <p className="text-2xl font-mono font-black text-blue-900 tracking-[0.25em] mt-0.5">
                       {demoOtp}
+                    </p>
+                    <p className="text-xs text-blue-600 font-medium mt-1">
+                      Demo Mode Active — No SMS gateway required
                     </p>
                   </div>
                 )}

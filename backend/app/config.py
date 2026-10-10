@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     SHOW_DEMO_OTP: Optional[bool] = None
     
     # OTP Configuration & Gateway
-    OTP_MODE: str = os.getenv("OTP_MODE", "sms") # "sms" | "production"
+    OTP_MODE: str = os.getenv("OTP_MODE", "demo") # "demo" | "sms" | "production"
     OTP_FILE_PATH: str = os.getenv("OTP_FILE_PATH", "")
     OTP_EXPIRE_MINUTES: int = int(os.getenv("OTP_EXPIRY_MINUTES", os.getenv("OTP_EXPIRE_MINUTES", "5")))
     OTP_COOLDOWN_SECONDS: int = int(os.getenv("OTP_RESEND_COOLDOWN_SECONDS", os.getenv("OTP_COOLDOWN_SECONDS", "60")))
@@ -65,9 +65,10 @@ class Settings(BaseSettings):
 
     def __init__(self, **values):
         super().__init__(**values)
+        mode = (self.OTP_MODE or "").strip().lower()
         if "SHOW_DEMO_OTP" not in values:
             if self.APP_ENV == "production":
-                self.SHOW_DEMO_OTP = False
+                self.SHOW_DEMO_OTP = (mode == "demo")
             else:
                 raw = os.getenv("SHOW_DEMO_OTP")
                 if raw is not None:
@@ -86,8 +87,22 @@ class Settings(BaseSettings):
         return origins
 
     def should_expose_demo_otp(self) -> bool:
-        """Only expose demo OTP when APP_ENV is development AND SHOW_DEMO_OTP is True."""
+        """
+        Exposes demo OTP in API response only when OTP_MODE is 'demo'
+        or in development with SHOW_DEMO_OTP enabled.
+        In SMS or production gateway mode, OTPs are NEVER exposed.
+        """
+        mode = (self.OTP_MODE or "").strip().lower()
+        if mode in ("sms", "production"):
+            return False
+        if mode == "demo":
+            return True
         return self.APP_ENV == "development" and bool(self.SHOW_DEMO_OTP)
+
+    def is_demo_otp_mode(self) -> bool:
+        """Returns True if prototype is running in demo OTP mode (no external SMS gateway)."""
+        mode = (self.OTP_MODE or "").strip().lower()
+        return mode == "demo"
 
     def validate_security(self):
         """Enforces security boundaries and fails fast on insecure configurations."""
@@ -103,12 +118,12 @@ class Settings(BaseSettings):
                     "SECRET_KEY must be configured in production with a strong random secret (minimum 32 characters)."
                 )
 
-            # 2. OTP mode validation: Force production SMS mode; reject file OTP
-            if self.OTP_MODE in ("file", "development") or self.OTP_MODE not in ("sms", "production"):
+            # 2. OTP mode validation: Permit 'demo', 'sms', or 'production'; strictly reject file OTP
+            mode = (self.OTP_MODE or "").strip().lower()
+            if mode == "file" or mode not in ("demo", "sms", "production"):
                 raise RuntimeError(
-                    "Insecure configuration: OTP_MODE must be set to 'production' or 'sms'. "
-                    "File-based OTP delivery (OTP_MODE='file') is strictly prohibited in production. "
-                    "Production must use an authenticated SMS provider (OTP_MODE='sms')."
+                    "Insecure configuration: OTP_MODE must be set to 'production', 'sms', or 'demo'. "
+                    "File-based OTP delivery (OTP_MODE='file') is strictly prohibited in production."
                 )
 
             # 3. OTP bypass validation: No dev mock OTP allowed in production
@@ -124,10 +139,10 @@ class Settings(BaseSettings):
                     "Insecure configuration: Wildcard CORS origin '*' is strictly prohibited in production."
                 )
 
-            # 5. Demo OTP validation: FAIL FAST if enabled in production
-            if self.SHOW_DEMO_OTP:
+            # 5. Demo OTP validation: When OTP_MODE is 'sms' or 'production', SHOW_DEMO_OTP is strictly forbidden
+            if mode in ("sms", "production") and self.SHOW_DEMO_OTP:
                 raise RuntimeError(
-                    "Insecure configuration: SHOW_DEMO_OTP is strictly prohibited in production."
+                    "Insecure configuration: SHOW_DEMO_OTP is strictly prohibited in production when OTP_MODE is SMS."
                 )
         else:
             # Development fallback secret if not explicitly provided

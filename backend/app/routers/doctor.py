@@ -300,10 +300,15 @@ def doctor_send_patient_otp(
             )
         otp_code, cooldown = send_otp_for_phone(phone, "REGISTER", "PATIENT", db)
         demo_otp = otp_code if settings.should_expose_demo_otp() else None
+        message = (
+            f"Demo OTP generated for patient mobile +91 {phone} (Demo Mode Active)"
+            if demo_otp else
+            f"OTP sent successfully to patient mobile +91 {phone}"
+        )
         return DoctorPatientSendOTPResponse(
             status="SUCCESS",
             success=True,
-            message=f"OTP sent successfully to patient mobile +91 {phone}",
+            message=message,
             phone=phone,
             masked_phone=mask_phone(phone),
             cooldown_seconds=cooldown,
@@ -320,11 +325,16 @@ def doctor_send_patient_otp(
     otp_code, cooldown = send_otp_for_phone(patient.phone, "DOCTOR_ADD", "PATIENT", db)
     masked = mask_phone(patient.phone)
     demo_otp = otp_code if settings.should_expose_demo_otp() else None
+    message = (
+        f"Demo OTP generated for patient mobile {masked} (Demo Mode Active)"
+        if demo_otp else
+        f"OTP sent successfully to patient mobile {masked}"
+    )
 
     return DoctorPatientSendOTPResponse(
         status="SUCCESS",
         success=True,
-        message=f"OTP sent successfully to patient mobile {masked}",
+        message=message,
         phone=patient.phone,
         masked_phone=masked,
         cooldown_seconds=cooldown,
@@ -621,10 +631,15 @@ def request_patient_access(
     db.commit()
 
     demo_otp = otp_code if settings.should_expose_demo_otp() else None
+    message = (
+        f"Access authorization Demo OTP generated for patient mobile {mask_phone(patient.phone)} (Demo Mode Active). Verification code displayed below."
+        if demo_otp else
+        f"Access authorization OTP sent to patient's mobile number {mask_phone(patient.phone)}. Please ask the patient for the 6-digit verification code."
+    )
     return RequestAccessResponse(
         status="ACCESS_PENDING",
         success=True,
-        message=f"Access authorization OTP sent to patient's mobile number {mask_phone(patient.phone)}. Please ask the patient for the 6-digit verification code.",
+        message=message,
         patient_id=patient.id,
         formatted_patient_id=f"PT-{patient.id:03d}",
         patient_name=patient.name,

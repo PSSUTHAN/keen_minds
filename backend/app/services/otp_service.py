@@ -219,11 +219,39 @@ class KannelOTPProvider(BaseOTPProvider):
             return True
 
 
+class DemoOTPProvider(BaseOTPProvider):
+    """
+    Demo OTP Provider for hackathon prototype & local testing.
+    Generates and records OTP without making any external SMS or network calls.
+    Bypasses Kannel and all third-party SMS gateways.
+    Plaintext OTP is never logged in application logs.
+    """
+
+    def send_otp(
+        self,
+        phone: str,
+        otp_code: str,
+        purpose: str,
+        role: str,
+        expires_at: datetime.datetime
+    ) -> bool:
+        masked_phone = mask_phone_for_otp(phone)
+        display_purpose = normalize_otp_purpose(purpose, role)
+        logger.info(
+            "Demo OTP active for %s (purpose: %s, role: %s). External SMS gateway bypassed.",
+            masked_phone, display_purpose, role
+        )
+        return True
+
+
 class SMSOTPProvider(KannelOTPProvider):
     """Alias for backwards compatibility with existing references."""
     pass
 
 
 def get_otp_provider() -> BaseOTPProvider:
-    """Factory creating Kannel OTP delivery provider."""
+    """Factory creating delivery provider based on OTP_MODE setting."""
+    mode = (settings.OTP_MODE or "").strip().lower()
+    if mode == "demo":
+        return DemoOTPProvider()
     return KannelOTPProvider()

@@ -40,6 +40,9 @@ const DoctorLoginModal = ({ isOpen, onClose }) => {
       setOtpSent(true);
       setDemoOtp(res.demo_otp || null);
       setCooldown(res.cooldown_seconds || 60);
+      if (res.demo_otp) {
+        speakText("Demo mode active. Your verification code is displayed on screen.");
+      }
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to send OTP. Mobile not registered as DOCTOR.');
     } finally {
@@ -186,13 +189,16 @@ const DoctorLoginModal = ({ isOpen, onClose }) => {
                 autoFocus
               />
 
-              {demoOtp && import.meta.env.VITE_APP_ENV !== 'production' && (
+              {demoOtp && (
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center my-2">
                   <p className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">
-                    Development Demo OTP
+                    DEVELOPMENT DEMO OTP
                   </p>
                   <p className="text-2xl font-mono font-black text-blue-900 tracking-[0.25em] mt-0.5">
                     {demoOtp}
+                  </p>
+                  <p className="text-xs text-blue-600 font-medium mt-1">
+                    Demo Mode Active — No SMS gateway required
                   </p>
                 </div>
               )}

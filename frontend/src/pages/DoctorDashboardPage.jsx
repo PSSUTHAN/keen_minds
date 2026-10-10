@@ -2266,13 +2266,16 @@ const DoctorDashboardPage = () => {
                             autoFocus
                           />
 
-                          {patientAddDemoOtp && import.meta.env.VITE_APP_ENV !== 'production' && (
+                          {patientAddDemoOtp && (
                             <div className="bg-white border border-blue-200 rounded-xl p-3 text-center shadow-xs">
                               <p className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">
-                                Development Demo OTP
+                                DEVELOPMENT DEMO OTP
                               </p>
                               <p className="text-2xl font-mono font-black text-blue-900 tracking-[0.25em] mt-0.5">
                                 {patientAddDemoOtp}
+                              </p>
+                              <p className="text-xs text-blue-600 font-medium mt-1">
+                                Demo Mode Active — No SMS gateway required
                               </p>
                             </div>
                           )}
@@ -2803,13 +2806,16 @@ const DoctorDashboardPage = () => {
                       autoFocus
                     />
 
-                    {accessDemoOtp && import.meta.env.VITE_APP_ENV !== 'production' && (
+                    {accessDemoOtp && (
                       <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3.5 text-center my-2">
                         <p className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">
-                          Development Demo OTP
+                          DEVELOPMENT DEMO OTP
                         </p>
                         <p className="text-2xl font-mono font-black text-blue-900 tracking-[0.25em] mt-0.5">
                           {accessDemoOtp}
+                        </p>
+                        <p className="text-xs text-blue-600 font-medium mt-1">
+                          Demo Mode Active — No SMS gateway required
                         </p>
                       </div>
                     )}

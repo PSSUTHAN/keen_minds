@@ -50,10 +50,15 @@ def patient_send_otp(payload: SendOTPRequest, db: Session = Depends(get_db)):
 
     otp_code, cooldown = send_otp_for_phone(phone, payload.purpose.upper(), "PATIENT", db)
     demo_otp = otp_code if settings.should_expose_demo_otp() else None
+    message = (
+        f"Demo OTP generated for +91 {phone} (Demo Mode Active)"
+        if demo_otp else
+        f"OTP sent successfully to +91 {phone}"
+    )
 
     return SendOTPResponse(
         success=True,
-        message=f"OTP sent successfully to +91 {phone}",
+        message=message,
         phone=phone,
         cooldown_seconds=cooldown,
         demo_otp=demo_otp
@@ -294,10 +299,15 @@ def doctor_send_otp(payload: SendOTPRequest, db: Session = Depends(get_db)):
 
     otp_code, cooldown = send_otp_for_phone(phone, purpose, "DOCTOR", db)
     demo_otp = otp_code if settings.should_expose_demo_otp() else None
+    message = (
+        f"Doctor Demo OTP generated for +91 {phone} (Demo Mode Active)"
+        if demo_otp else
+        f"Doctor OTP sent successfully to +91 {phone}"
+    )
 
     return SendOTPResponse(
         success=True,
-        message=f"Doctor OTP sent successfully to +91 {phone}",
+        message=message,
         phone=phone,
         cooldown_seconds=cooldown,
         demo_otp=demo_otp
