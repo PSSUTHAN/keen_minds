@@ -8,7 +8,7 @@ const getBaseUrl = () => {
     clean = clean.replace(/^https?:\/\/(https?:\/\/)/i, '$1');
     return clean.endsWith('/api/v1') ? clean : `${clean}/api/v1`;
   }
-  return 'http://127.0.0.1:8000/api/v1';
+  return 'https://keen-minds-d3zu.onrender.com/api/v1';
 };
 
 const API_BASE_URL = getBaseUrl();
